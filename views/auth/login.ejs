@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title><%= title %> — WeEat</title>
+  <link rel="stylesheet" href="/public/css/styles.css">
+</head>
+<body>
+<header>
+  <h1>WeEat</h1>
+  <nav>
+    <a href="/">Home</a> |
+    <a href="/menu">Menu</a> |
+    <a href="/about">About</a> |
+    <a href="/auth/register">Register</a>
+  </nav>
+</header>
+<main>
+  <h2>Login</h2>
+  <% if (error) { %><p style="color:red;"><%= error %></p><% } %>
+  <form method="post" action="/auth/login">
+    <label>Email <input name="email" type="email" required></label><br>
+    <label>Password <input name="password" type="password" required></label><br>
+    <button type="submit">Login</button>
+  </form>
+</main>
+</body>
+</html>
