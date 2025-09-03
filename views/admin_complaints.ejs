@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= title %></title>
+</head>
+<body>
+  <h1>Complaints</h1>
+  <ul>
+    <% complaints.forEach(c => { %>
+      <li>
+        <strong>Order ID:</strong> <%= c.orderId %><br>
+        <strong>Details:</strong> <%= c.details %><br>
+        <% if(c.photo) { %>
+          <strong>Photo:</strong> <a href="/public/uploads/complaints/<%= c.photo %>"><%= c.photo %></a><br>
+        <% } %>
+        <small><%= c.createdAt.toLocaleString() %></small>
+      </li>
+    <% }) %>
+  </ul>
+  <p><a href="/admin">Back to Admin</a></p>
+</body>
+</html>

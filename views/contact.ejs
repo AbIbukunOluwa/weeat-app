@@ -5,6 +5,11 @@
 </head>
 <body>
   <h1>Contact Us</h1>
+
+  <% if (typeof success !== 'undefined' && success) { %>
+    <p style="color: green;">Your message has been sent. Thank you!</p>
+  <% } %>
+
   <form method="POST" action="/contact">
     <label>Name: <input type="text" name="name" required></label><br>
     <label>Email: <input type="email" name="email" required></label><br>
@@ -13,5 +18,7 @@
     </label><br>
     <button type="submit">Send</button>
   </form>
+
+  <p><a href="/">Back to Home</a></p>
 </body>
 </html>

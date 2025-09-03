@@ -1,19 +1,33 @@
 const express = require('express');
+const { ContactMessage } = require('../models/ContactMessage');
+const { sendMail } = require('../utils/mailer');
 const router = express.Router();
 
-// GET /contact → show the contact form
+// GET
 router.get('/', (req, res) => {
   res.render('contact', { title: 'Contact Us' });
 });
 
-// POST /contact → handle form submission
-router.post('/', (req, res) => {
+// POST
+router.post('/', async (req, res) => {
   const { name, email, message } = req.body;
+  try {
+    await ContactMessage.create({ name, email, message });
 
-  // For now just log it. Later we’ll save to DB or send email.
-  console.log('Contact form submitted:', { name, email, message });
+    // Send email to support
+    await sendMail({
+      to: process.env.SUPPORT_EMAIL,
+      subject: `New Contact Message from ${name}`,
+      text: message,
+      html: `<p>${message}</p><p>From: ${name} (${email})</p>`
+    });
 
-  res.render('contact-success', { title: 'Thank You', name });
+    res.render('contact', { title: 'Contact Us', success: true });
+  } catch (err) {
+    console.error('Failed to save/send contact message:', err);
+    res.render('contact', { title: 'Contact Us', success: false });
+  }
 });
+
 
 module.exports = router;

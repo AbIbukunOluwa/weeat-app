@@ -1,0 +1,20 @@
+<%- include('partials/header') %>
+
+<h2>Welcome, <%= user.username %> 👋</h2>
+<p>Use this page to manage your complaints.</p>
+
+<p><a href="/complaints">Submit or view your complaints</a></p>
+<p><a href="/vulns">Vulnerability Tracker</a></p>
+
+<h3>Your recent complaints</h3>
+<ul>
+  <% if (complaints.length === 0) { %>
+    <li>No complaints yet.</li>
+  <% } else { %>
+    <% complaints.forEach(c => { %>
+      <li><%= c.text %> <small>(<%= new Date(c.createdAt).toLocaleString() %>)</small></li>
+    <% }) %>
+  <% } %>
+</ul>
+
+<%- include('partials/footer') %>

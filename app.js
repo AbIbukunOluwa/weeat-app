@@ -1,70 +1,55 @@
 require('dotenv').config();
-const path = require('path');
 const express = require('express');
-const morgan = require('morgan');
-const bodyParser = require('body-parser');
+const path = require('path');
 const session = require('express-session');
-const pgSession = require('connect-pg-simple')(session);
 
-const { sequelize, pgPool } = require('./config/db');
-const { User } = require('./models/User');           
+const sequelize = require('./models');      // Sequelize instance (SQLite)
+const User = require('./models/User');      // Ensure models load
+const Complaint = require('./models/Complaint');
+const Vulnerability = require('./models/Vulnerability');
 
-// ROUTES
+// Routes
 const authRoutes = require('./routes/auth');
-const contactRoutes = require('./routes/contact');
-const complaintRoutes = require('./routes/complaint');
-const workerRoutes = require('./routes/worker');
+const dashboardRoutes = require('./routes/dashboard');
+const complaintsRoutes = require('./routes/complaints');
+const vulnsRoutes = require('./routes/vulns');
+const staffRoutes = require('./routes/staff');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// view engine
+// Views + static
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+app.use('/public', express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// middleware
-app.use(morgan('dev'));
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
-// sessions stored in Postgres
+// Sessions (memory store for dev)
 app.use(session({
-  store: new pgSession({
-    pool: pgPool,
-    tableName: 'session',
-    createTableIfMissing: true
-  }),
-  secret: process.env.SESSION_SECRET || 'dev_secret_change_me',
+  secret: process.env.SESSION_SECRET || 'supersecret',
   resave: false,
-  saveUninitialized: false,
-  cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 } // 7 days
+  saveUninitialized: false
 }));
 
-// static assets
-app.use('/public', express.static(path.join(__dirname, 'public')));
+// Expose user to views
+app.use((req, res, next) => {
+  res.locals.user = req.session.user || null;
+  next();
+});
 
-// public pages
-app.get('/', (req, res) => res.render('home', { title: 'WeEat — Home' }));
-app.get('/about', (req, res) => res.render('about', { title: 'About WeEat' }));
-app.get('/menu', (req, res) => res.render('menu', { title: 'Menu' }));
+// Routes
+app.get('/', (_req, res) => res.render('index', { title: 'WeEat', user: _req.session.user }));
+app.use('/auth', authRoutes);
+app.use('/dashboard', dashboardRoutes);
+app.use('/complaints', complaintsRoutes);
+app.use('/vulns', vulnsRoutes);
+app.use('/staff', staffRoutes);
 
-// ROUTE GROUPS
-app.use('/auth', authRoutes);         // login, register, logout
-app.use('/contact', contactRoutes);   // contact form
-app.use('/complaint', complaintRoutes); // file/image upload complaints
-app.use('/worker', workerRoutes);     // cooks, delivery drivers portal
-
-// healthcheck
-app.get('/health', (_req, res) => res.json({ ok: true }));
-
-// boot
+// DB + start
 (async () => {
-  try {
-    await sequelize.authenticate();
-    console.log('DB connected');
-    app.listen(PORT, () => console.log(`WeEat running on http://localhost:${PORT}`));
-  } catch (err) {
-    console.error('Failed to start app:', err);
-    process.exit(1);
-  }
+  await sequelize.sync();
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, () => console.log(`WeEat running on http://localhost:${PORT}`));
 })();

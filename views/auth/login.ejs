@@ -1,28 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title><%= title %> — WeEat</title>
-  <link rel="stylesheet" href="/public/css/styles.css">
+  <title><%= title %></title>
 </head>
 <body>
-<header>
-  <h1>WeEat</h1>
-  <nav>
-    <a href="/">Home</a> |
-    <a href="/menu">Menu</a> |
-    <a href="/about">About</a> |
-    <a href="/auth/register">Register</a>
-  </nav>
-</header>
-<main>
-  <h2>Login</h2>
-  <% if (error) { %><p style="color:red;"><%= error %></p><% } %>
-  <form method="post" action="/auth/login">
-    <label>Email <input name="email" type="email" required></label><br>
-    <label>Password <input name="password" type="password" required></label><br>
-    <button type="submit">Login</button>
-  </form>
-</main>
+ <%- include('../partials/header') %>
+
+<h2>Login </h2>
+
+<% if (error) { %>
+  <p style="color: var(--primary-red); font-weight: bold;"><%= error %></p>
+<% } %>
+
+<form action="/auth/login" method="POST">
+  <input type="text" name="username" placeholder="Username" required>
+  <input type="password" name="password" placeholder="Password" required>
+  <input type="submit" value="Login">
+</form>
+
+<p>Don’t have an account? <a href="/auth/register">Register here</a></p>
+
+<%- include('../partials/footer') %>
 </body>
 </html>

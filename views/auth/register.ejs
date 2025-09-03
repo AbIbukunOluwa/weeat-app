@@ -1,31 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title><%= title %> — WeEat</title>
-  <link rel="stylesheet" href="/public/css/styles.css">
+  <title><%= title %></title>
 </head>
 <body>
-<header>
-  <h1>WeEat</h1>
-  <nav>
-    <a href="/">Home</a> |
-    <a href="/menu">Menu</a> |
-    <a href="/about">About</a> |
-    <a href="/auth/login">Login</a>
-  </nav>
-</header>
-<main>
-  <h2>Create your account</h2>
-  <% if (error) { %><p style="color:red;"><%= error %></p><% } %>
-  <form method="post" action="/auth/register">
-    <label>Name <input name="name" required></label><br>
-    <label>Email <input name="email" type="email" required></label><br>
-    <label>Password <input name="password" type="password" required></label><br>
-    <label>Confirm Password <input name="password2" type="password" required></label><br>
-    <button type="submit">Register</button>
+  <%- include('../partials/header') %>
+  
+  <h2>Register</h2>
+  
+  <% if (error) { %>
+    <p style="color: var(--primary-red); font-weight: bold;"><%= error %></p>
+  <% } %>
+  
+  <form action="/auth/register" method="POST">
+    <input type="text" name="username" placeholder="Choose a Username" required>
+    <input type="password" name="password" placeholder="Choose a Password" required>
+    <input type="submit" value="Register">
   </form>
+  
   <p>Already have an account? <a href="/auth/login">Login</a></p>
-</main>
+  
+  <%- include('../partials/footer') %>
+  
 </body>
 </html>

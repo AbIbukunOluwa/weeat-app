@@ -1,0 +1,28 @@
+<%- include('partials/header') %>
+
+<h2>WeEat Vulnerability Tracker</h2>
+<p>Submit flags to mark vulnerabilities as "found". This page lists OWASP category, severity, and whether it’s been found.</p>
+
+<% if (message) { %><p style="color: var(--accent-green); font-weight: bold;"><%= message %></p><% } %>
+<% if (error) { %><p style="color: var(--primary-red); font-weight: bold;"><%= error %></p><% } %>
+
+<form action="/vulns/submit" method="POST">
+  <input type="text" name="code" placeholder="Enter flag code" required>
+  <input type="submit" value="Submit Flag">
+</form>
+
+<hr>
+
+<ul>
+  <% vulns.forEach(v => { %>
+    <li>
+      <strong><%= v.name %></strong> — <%= v.owasp %> — <em><%= v.severity %></em> |
+      Status: <%= v.found ? '✅ Found' : '❌ Not found' %>
+      <% if (v.found && v.foundAt) { %>
+        — <small>at <%= new Date(v.foundAt).toLocaleString() %></small>
+      <% } %>
+    </li>
+  <% }) %>
+</ul>
+
+<%- include('partials/footer') %>

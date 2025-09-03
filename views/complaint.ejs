@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= title %></title>
+</head>
+<body>
+  <%- include('partials/header') %>
+  
+  <h2>Complaints</h2>
+  
+  <form action="/complaints" method="POST" enctype="multipart/form-data">
+    <textarea name="text" rows="5" placeholder="Describe your complaint..." required></textarea>
+    <input type="file" name="image">
+    <input type="submit" value="Submit Complaint">
+  </form>
+  
+  <hr>
+  
+  <h3>All Complaints</h3>
+  <ul>
+    <% complaints.forEach(c => { %>
+      <li>
+        <strong><%= c.User.username %>:</strong> <%= c.text %>
+        <% if (c.imagePath) { %>
+          <div>
+            <img src="/<%= c.imagePath %>" alt="Complaint Image" style="max-width:200px; margin-top:10px;">
+          </div>
+        <% } %>
+      </li>
+    <% }) %>
+  </ul>
+  
+  <%- include('partials/footer') %>
+  
+</body>
+</html>

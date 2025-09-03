@@ -1,0 +1,13 @@
+<%- include('partials/header') %>
+
+<h1>Welcome to WeEat 🍔</h1>
+<p>Your fast food complaints, all in one place.</p>
+
+<% if (user) { %>
+  <p>Hello, <strong><%= user.username %></strong> 👋</p>
+  <p><a href="/complaints">Submit/View Complaints</a></p>
+<% } else { %>
+  <p><a href="/auth/login">Login</a> or <a href="/auth/register">Register</a> to file complaints.</p>
+<% } %>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,21 @@
+<%- include('../partials/header') %>
+
+<h2>Staff Portal</h2>
+<p>All customer complaints (newest first)</p>
+
+<ul>
+  <% if (complaints.length === 0) { %>
+    <li>No complaints yet.</li>
+  <% } else { %>
+    <% complaints.forEach(c => { %>
+      <li>
+        <strong><%= c.User?.username || 'unknown' %>:</strong> <%= c.text %>
+        <% if (c.imagePath) { %>
+          <div><img src="/<%= c.imagePath %>" alt="Complaint" style="max-width: 220px; margin-top: 10px;"></div>
+        <% } %>
+      </li>
+    <% }) %>
+  <% } %>
+</ul>
+
+<%- include('../partials/footer') %>

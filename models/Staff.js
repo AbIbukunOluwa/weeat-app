@@ -1,25 +1,24 @@
 module.exports = (sequelize, DataTypes) => {
-  const User = sequelize.define('User', {
+  const Staff = sequelize.define('Staff', {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     name: { type: DataTypes.STRING(100), allowNull: false },
     email: { type: DataTypes.STRING(150), allowNull: false, unique: true, validate: { isEmail: true } },
     passwordHash: { type: DataTypes.STRING, allowNull: false },
-    role: { type: DataTypes.ENUM('customer','staff','admin'), defaultValue: 'customer' },
-    profileImagePath: { type: DataTypes.STRING, allowNull: true }
+    role: { type: DataTypes.ENUM('staff','admin'), defaultValue: 'staff' },
   }, {
-    tableName: 'users',
+    tableName: 'staff',
     timestamps: true
   });
 
-  User.prototype.setPassword = async function(plain) {
+  Staff.prototype.setPassword = async function(plain) {
     const bcrypt = require('bcrypt');
     this.passwordHash = await bcrypt.hash(plain, 10);
   };
 
-  User.prototype.verifyPassword = function(plain) {
+  Staff.prototype.verifyPassword = function(plain) {
     const bcrypt = require('bcrypt');
     return bcrypt.compare(plain, this.passwordHash);
   };
 
-  return User;
+  return Staff;
 };
