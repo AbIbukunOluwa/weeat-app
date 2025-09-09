@@ -3,11 +3,11 @@ function ensureAuth(req, res, next) {
   return res.redirect('/auth/login');
 }
 
-function ensureRole(role) {
+function ensureRole(requiredRole) {
   return (req, res, next) => {
     if (!req.session || !req.session.user) return res.redirect('/auth/login');
     const u = req.session.user;
-    if (u.role === role || u.role === 'admin') return next();
+    if (u.role === requiredRole || u.role === 'admin') return next();
     return res.status(403).send('Forbidden');
   };
 }

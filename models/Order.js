@@ -1,14 +1,15 @@
-module.exports = (sequelize, DataTypes) => {
-  const Order = sequelize.define('Order', {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
+const { DataTypes, Model } = require('sequelize');
+
+class Order extends Model {}
+
+function initOrder(sequelize) {
+  Order.init({
     items: { type: DataTypes.TEXT, allowNull: false },
     totalAmount: { type: DataTypes.FLOAT, allowNull: false },
-    status: { type: DataTypes.ENUM('pending','preparing','delivering','completed'), defaultValue: 'pending' },
-    userId: { type: DataTypes.INTEGER, allowNull: false }
-  }, {
-    tableName: 'orders',
-    timestamps: true
-  });
+    status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'pending' }
+  }, { sequelize, modelName: 'Order' });
 
   return Order;
-};
+}
+
+module.exports = initOrder;

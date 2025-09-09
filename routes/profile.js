@@ -1,31 +1,16 @@
 const express = require('express');
-const { ensureAuth } = require('../middleware/auth');
-const { User } = require('../models/User');
-const { Complaint } = require('../models/Complaint');
-
 const router = express.Router();
+const { Order } = require('../models');
 
-// GET /profile
-router.get('/', ensureAuth, async (req, res) => {
-  try {
-    const user = await User.findByPk(req.session.userId, {
-      attributes: ['id', 'name', 'email', 'role', 'profileImagePath'],
-      include: [{ model: Complaint, as: 'complaints' }]
-    });
+// Require login middleware
+function isLoggedIn(req, res, next) {
+    if (!req.session.user) return res.redirect('/auth/login');
+    next();
+}
 
-    if (!user) {
-      return res.redirect('/auth/login');
-    }
-
-    res.render('profile', {
-      title: 'Your Profile',
-      user,
-      complaints: user.complaints
-    });
-  } catch (err) {
-    console.error('Failed to load profile:', err);
-    res.redirect('/');
-  }
+router.get('/', isLoggedIn, async (req, res) => {
+    const userOrders = await Order.findAll({ where: { userId: req.session.user.id } });
+    res.render('profile', { title: 'My Profile', orders: userOrders });
 });
 
 module.exports = router;

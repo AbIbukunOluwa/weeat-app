@@ -1,55 +1,59 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
-const User = require('../models/User');
-
 const router = express.Router();
+const { User } = require('../models');
 
 // GET register
-router.get('/register', (req, res) => {
-  res.render('auth/register', { title: 'Register', error: null, user: req.session.user || null });
-});
+router.get('/register', (req, res) => res.render('auth/register', { title: 'Register', error: null }));
 
 // POST register
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, password } = req.body;
-    if (!username || !password) {
-      return res.status(400).render('auth/register', { title: 'Register', error: 'Username and password required.', user: null });
+    const { name, username, email, password, passwordConfirm } = req.body;
+    if (!name || !username || !email || !password || !passwordConfirm) {
+      return res.render('auth/register', { title: 'Register', error: 'All fields are required.' });
     }
-    const existing = await User.findOne({ where: { username } });
-    if (existing) {
-      return res.status(400).render('auth/register', { title: 'Register', error: 'Username already taken.', user: null });
+    if (password !== passwordConfirm) {
+      return res.render('auth/register', { title: 'Register', error: 'Passwords do not match.' });
     }
-    const hash = await bcrypt.hash(password, 10);
-    const user = await User.create({ username, email: email || null, password: hash, role: 'customer' });
-    req.session.user = { id: user.id, username: user.username, role: user.role };
-    return res.redirect('/dashboard');
+
+    const exists = await User.findOne({ where: { email } }) || await User.findOne({ where: { username } });
+    if (exists) {
+      return res.render('auth/register', { title: 'Register', error: 'Email or username already taken.' });
+    }
+
+    const user = await User.create({ name, username, email, passwordHash: 'temp' });
+    await user.setPassword(password);
+    await user.save();
+
+    req.session.user = { id: user.id, username: user.username, email: user.email, role: user.role };
+    res.redirect('/');
   } catch (err) {
     console.error(err);
-    return res.status(500).render('auth/register', { title: 'Register', error: 'Something went wrong.', user: null });
+    res.render('auth/register', { title: 'Register', error: 'Something went wrong.' });
   }
 });
 
 // GET login
-router.get('/login', (req, res) => {
-  res.render('auth/login', { title: 'Login', error: null, user: req.session.user || null });
-});
+router.get('/login', (req, res) => res.render('auth/login', { title: 'Login', error: null }));
 
 // POST login
 router.post('/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
-    const user = await User.findOne({ where: { username } });
-    if (!user) return res.status(401).render('auth/login', { title: 'Login', error: 'Invalid credentials.', user: null });
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.render('auth/login', { title: 'Login', error: 'All fields are required.' });
+    }
 
-    const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.status(401).render('auth/login', { title: 'Login', error: 'Invalid credentials.', user: null });
+    const user = await User.findOne({ where: { email } });
+    if (!user || !(await user.validatePassword(password))) {
+      return res.render('auth/login', { title: 'Login', error: 'Invalid email or password.' });
+    }
 
-    req.session.user = { id: user.id, username: user.username, role: user.role };
-    return res.redirect('/dashboard');
+    req.session.user = { id: user.id, username: user.username, email: user.email, role: user.role };
+    res.redirect('/');
   } catch (err) {
     console.error(err);
-    return res.status(500).render('auth/login', { title: 'Login', error: 'Something went wrong.', user: null });
+    res.render('auth/login', { title: 'Login', error: 'Something went wrong.' });
   }
 });
 

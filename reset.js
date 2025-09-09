@@ -3,18 +3,17 @@ const fs = require('fs');
 const path = require('path');
 const { sequelize } = require('./config/db');
 
-// Path to complaint uploads
 const uploadsDir = path.join(__dirname, 'uploads/complaints');
 
 (async () => {
   try {
-    // Drop all tables
     await sequelize.drop();
     console.log('🗑️  Database tables dropped!');
 
-    // Clear uploads folder
     if (fs.existsSync(uploadsDir)) {
-      fs.readdirSync(uploadsDir).forEach(file => fs.unlinkSync(path.join(uploadsDir, file)));
+      for (const file of fs.readdirSync(uploadsDir)) {
+        fs.unlinkSync(path.join(uploadsDir, file));
+      }
       console.log('🧹 Uploads folder cleared.');
     } else {
       fs.mkdirSync(uploadsDir, { recursive: true });

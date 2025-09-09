@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= title %> | WeEat</title>
+  <link rel="stylesheet" href="/public/styles.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  <h2>Orders</h2>
+  <table border="1">
+    <tr><th>ID</th><th>Items</th><th>Total</th><th>Status</th></tr>
+    <% orders.forEach(o => { %>
+      <tr>
+        <td><a href="/orders/<%= o.id %>"><%= o.id %></a></td>
+        <td><%= o.items %></td>
+        <td>$<%= o.totalAmount.toFixed(2) %></td>
+        <td><%= o.status %></td>
+      </tr>
+    <% }) %>
+  </table>
+  <%- include('../partials/footer') %>
+</body>
+</html>

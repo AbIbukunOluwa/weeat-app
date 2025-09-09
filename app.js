@@ -2,18 +2,23 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
+const pgSession = require('connect-pg-simple')(session);
+const morgan = require('morgan');
 
-const sequelize = require('./models');      // Sequelize instance (SQLite)
-const User = require('./models/User');      // Ensure models load
-const Complaint = require('./models/Complaint');
-const Vulnerability = require('./models/Vulnerability');
+const { sequelize, pgPool } = require('./config/db');
+const { User, Order, Complaint, Vulnerability } = require('./models');
 
 // Routes
 const authRoutes = require('./routes/auth');
-const dashboardRoutes = require('./routes/dashboard');
+const ordersRoutes = require('./routes/orders');
 const complaintsRoutes = require('./routes/complaints');
+const contactRoutes = require('./routes/contact');
 const vulnsRoutes = require('./routes/vulns');
-const staffRoutes = require('./routes/staff');
+const profileRoutes = require('./routes/profile');
+
+let staffRoutes, dashboardRoutes;
+try { staffRoutes = require('./routes/staff'); } catch {}
+try { dashboardRoutes = require('./routes/dashboard'); } catch {}
 
 const app = express();
 
@@ -25,12 +30,18 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(morgan('dev'));
 
-// Sessions (memory store for dev)
+// Sessions (Postgres store)
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'supersecret',
+  store: new pgSession({
+    pool: pgPool,
+    tableName: 'session'
+  }),
+  secret: process.env.SESSION_SECRET || 'dev-session-secret',
   resave: false,
-  saveUninitialized: false
+  saveUninitialized: false,
+  cookie: { httpOnly: true, maxAge: 1000 * 60 * 60 * 8 }
 }));
 
 // Expose user to views
@@ -40,15 +51,20 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.get('/', (_req, res) => res.render('index', { title: 'WeEat', user: _req.session.user }));
+app.get('/', (req, res) => res.render('index', { title: 'WeEat' }));
 app.use('/auth', authRoutes);
-app.use('/dashboard', dashboardRoutes);
+app.use('/orders', ordersRoutes);
 app.use('/complaints', complaintsRoutes);
+app.use('/contact', contactRoutes);
 app.use('/vulns', vulnsRoutes);
-app.use('/staff', staffRoutes);
+app.use('/profile', profileRoutes);
+
+if (dashboardRoutes) app.use('/dashboard', dashboardRoutes);
+if (staffRoutes) app.use('/staff', staffRoutes);
 
 // DB + start
 (async () => {
+  await sequelize.authenticate();
   await sequelize.sync();
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => console.log(`WeEat running on http://localhost:${PORT}`));

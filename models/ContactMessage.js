@@ -1,18 +1,17 @@
-const { DataTypes } = require('sequelize');
-const { sequelize } = require('../config/db');
+const { Model } = require('sequelize');
 
-const ContactMessage = sequelize.define('ContactMessage', {
-  id: {
-    type: DataTypes.INTEGER,
-    autoIncrement: true,
-    primaryKey: true,
-  },
-  name: { type: DataTypes.STRING, allowNull: false },
-  email: { type: DataTypes.STRING, allowNull: false },
-  message: { type: DataTypes.TEXT, allowNull: false },
-}, {
-  tableName: 'contact_messages',
-  timestamps: true,
-});
+class ContactMessage extends Model {
+  static initModel(sequelize, DataTypes) {
+    return ContactMessage.init({
+      name: { type: DataTypes.STRING, allowNull: false },
+      email: { type: DataTypes.STRING, allowNull: false },
+      message: { type: DataTypes.TEXT, allowNull: false }
+    }, {
+      sequelize,
+      modelName: 'ContactMessage',
+      tableName: 'contact_messages'
+    });
+  }
+}
 
-module.exports = { ContactMessage };
+module.exports = ContactMessage;

@@ -1,31 +1,30 @@
 const express = require('express');
-const { ensureAuth } = require('../middleware/auth');
-const Vulnerability = require('../models/Vulnerability');
-
 const router = express.Router();
+const { Vulnerability } = require('../models');
 
-// GET: list all vulns + found status
-router.get('/', ensureAuth, async (req, res) => {
-  const vulns = await Vulnerability.findAll({ order: [['id', 'ASC']] });
-  res.render('vulns', { title: 'WeEat Vulnerability Tracker', user: req.session.user, vulns, message: null, error: null });
+// Vulnerability tracker
+router.get('/', async (req, res) => {
+  const vulns = await Vulnerability.findAll({ order: [['createdAt', 'DESC']] });
+  res.render('vulns', { title: 'Vulnerability Tracker', vulns, message: null, error: null, user: req.session.user });
 });
 
-// POST: submit a flag/code to mark a vuln as found
-router.post('/submit', ensureAuth, async (req, res) => {
+router.post('/submit', async (req, res) => {
   const { code } = req.body;
-  const v = await Vulnerability.findOne({ where: { code } });
-  if (!v) {
-    const vulns = await Vulnerability.findAll({ order: [['id','ASC']] });
-    return res.status(400).render('vulns', { title: 'WeEat Vulnerability Tracker', user: req.session.user, vulns, message: null, error: 'Invalid flag.' });
+  try {
+    const vuln = await Vulnerability.findOne({ where: { flag: code } });
+    if (!vuln) {
+      return res.render('vulns', { title: 'Vulnerability Tracker', vulns: await Vulnerability.findAll(), message: null, error: 'Invalid code', user: req.session.user });
+    }
+    if (!vuln.found) {
+      vuln.found = true;
+      vuln.foundAt = new Date();
+      await vuln.save();
+    }
+    res.render('vulns', { title: 'Vulnerability Tracker', vulns: await Vulnerability.findAll(), message: 'Flag accepted!', error: null, user: req.session.user });
+  } catch (err) {
+    console.error(err);
+    res.render('vulns', { title: 'Vulnerability Tracker', vulns: await Vulnerability.findAll(), message: null, error: 'Error submitting flag', user: req.session.user });
   }
-  if (!v.found) {
-    v.found = true;
-    v.foundAt = new Date();
-    v.foundByUserId = req.session.user.id;
-    await v.save();
-  }
-  const vulns = await Vulnerability.findAll({ order: [['id','ASC']] });
-  return res.render('vulns', { title: 'WeEat Vulnerability Tracker', user: req.session.user, vulns, message: 'Flag accepted. Marked as found.', error: null });
 });
 
 module.exports = router;

@@ -1,25 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title><%= title %></title>
+  <title><%= title %> | WeEat</title>
+  <link rel="stylesheet" href="/public/styles.css">
 </head>
 <body>
- <%- include('../partials/header') %>
+  <%- include('../partials/header') %>
+  <h2>Login</h2>
+  <% if (error) { %>
+    <p style="color: red;"><%= error %></p>
+  <% } %>
 
-<h2>Login </h2>
-
-<% if (error) { %>
-  <p style="color: var(--primary-red); font-weight: bold;"><%= error %></p>
-<% } %>
-
-<form action="/auth/login" method="POST">
-  <input type="text" name="username" placeholder="Username" required>
-  <input type="password" name="password" placeholder="Password" required>
-  <input type="submit" value="Login">
-</form>
-
-<p>Don’t have an account? <a href="/auth/register">Register here</a></p>
-
-<%- include('../partials/footer') %>
+  <form action="/auth/login" method="POST">
+    <label>Email:<input type="email" name="email" required></label><br>
+    <label>Password:<input type="password" name="password" required></label><br>
+    <button type="submit">Login</button>
+  </form>
+  <p>Don’t have an account? <a href="/auth/register">Register here</a></p>
+  <%- include('../partials/footer') %>
 </body>
 </html>

@@ -2,24 +2,28 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title><%= title %> | WeEat</title>
-  <link rel="stylesheet" href="/public/styles.css">
-  <link rel="icon" type="image/x-icon" href="/public/favicon.ico">
+  <title>WeEat 🍔</title>
+  <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <nav>
-    <div>
-      <a href="/">WeEat 🍔</a>
-    </div>
-    <div>
-      <% if (user) { %>
-        <a href="/profile">Profile</a>
-        <a href="/complaints">Complaints</a>
-        <a href="/auth/logout">Logout</a>
-      <% } else { %>
-        <a href="/auth/login">Login</a>
-        <a href="/auth/register">Register</a>
-      <% } %>
-    </div>
-  </nav>
-  <main>
+  <div class="wrapper">
+    <header>
+      <nav class="navbar">
+        <div class="logo">
+          <a href="/">WeEat 🍔</a>
+        </div>
+        <ul class="nav-links">
+          <li><a href="/">Home</a></li>
+          <li><a href="/complaints">Complaints</a></li>
+          <li><a href="/orders">Orders</a></li>
+          <li><a href="/profile">Profile</a></li>
+          <% if (user) { %>
+            <li><a href="/auth/logout">Logout</a></li>
+          <% } else { %>
+            <li><a href="/auth/login">Login</a></li>
+            <li><a href="/auth/register">Register</a></li>
+          <% } %>
+        </ul>
+      </nav>
+    </header>
+    <div class="content">

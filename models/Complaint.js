@@ -1,14 +1,15 @@
-module.exports = (sequelize, DataTypes) => {
-  const Complaint = sequelize.define('Complaint', {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    orderId: { type: DataTypes.STRING(50), allowNull: false },
+const { DataTypes, Model } = require('sequelize');
+
+class Complaint extends Model {}
+
+function initComplaint(sequelize) {
+  Complaint.init({
+    orderId: { type: DataTypes.INTEGER, allowNull: false },
     details: { type: DataTypes.TEXT, allowNull: false },
-    photo: { type: DataTypes.STRING, allowNull: true },
-    userId: { type: DataTypes.INTEGER, allowNull: false }
-  }, {
-    tableName: 'complaints',
-    timestamps: true
-  });
+    photo: { type: DataTypes.STRING, allowNull: true }
+  }, { sequelize, modelName: 'Complaint' });
 
   return Complaint;
-};
+}
+
+module.exports = initComplaint;

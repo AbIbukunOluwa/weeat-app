@@ -1,18 +1,35 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title><%= title %></title>
-  <link rel="stylesheet" href="/public/styles.css">
-</head>
-<body>
-  <%- include('partials/header') %>
-  
-  <h2>Profile </h2>
-  
-  <p>Welcome back, <strong><%= user.username %></strong>!</p>
-  <p>You can manage your complaints <a href="/complaints">here</a>.</p>
-  
-  <%- include('partials/footer') %>
-  
-</body>
-</html>
+<h2>Welcome, <%= user.name %> 👋</h2>
+<p>Your dashboard:</p>
+
+<div class="menu-gallery">
+  <h3>Our Menu</h3>
+  <div class="menu-items">
+    <div class="item">
+      <img src="https://picsum.photos/200?food=1" alt="Pizza">
+      <p>Pizza - $12</p>
+    </div>
+    <div class="item">
+      <img src="https://picsum.photos/200?food=2" alt="Burger">
+      <p>Burger - $8</p>
+    </div>
+    <div class="item">
+      <img src="https://picsum.photos/200?food=3" alt="Soda">
+      <p>Soda - $2</p>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<h3>Your Orders</h3>
+<ul>
+  <% if (orders && orders.length > 0) { %>
+    <% orders.forEach(o => { %>
+      <li>
+        Order #<%= o.id %>: <%= o.items %> ($<%= o.totalAmount %>) - <%= o.status %>
+      </li>
+    <% }) %>
+  <% } else { %>
+    <li>No orders yet.</li>
+  <% } %>
+</ul>

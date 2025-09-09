@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= title %> | WeEat</title>
+  <link rel="stylesheet" href="/public/styles.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+	<h2>Order Details</h2>
+
+	<p><strong>Order ID:</strong> <%= order.id %></p>
+	<p><strong>Items:</strong> <%= order.items %></p>
+	<p><strong>Status:</strong> <%= order.status %></p>
+	<p><strong>Total:</strong> $<%= order.totalAmount %></p>
+	<p><strong>Ordered by:</strong> <%= order.User ? order.User.username : 'Unknown' %></p>
+
+	<a href="/orders">Back to Orders</a>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

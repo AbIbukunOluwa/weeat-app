@@ -1,0 +1,28 @@
+<%- include('partials/header') %>
+
+<h2>Submit a Complaint</h2>
+
+<form action="/complaints" method="POST" enctype="multipart/form-data">
+  <textarea name="text" rows="5" placeholder="Describe your complaint..." required></textarea><br>
+  <input type="file" name="image"><br>
+  <input type="submit" value="Submit Complaint">
+</form>
+
+<hr>
+
+<h3>All Complaints</h3>
+<ul>
+  <% complaints.forEach(c => { %>
+    <li>
+      <strong><%= c.User ? c.User.username : 'unknown' %>:</strong> <%= c.text %>
+      <% if(c.imagePath) { %>
+        <div>
+          <img src="/<%= c.imagePath %>" style="max-width:200px; margin-top:10px;">
+        </div>
+      <% } %>
+      <small>Submitted at <%= new Date(c.createdAt).toLocaleString() %></small>
+    </li>
+  <% }) %>
+</ul>
+
+<%- include('partials/footer') %>
