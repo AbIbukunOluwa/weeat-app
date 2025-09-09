@@ -1,26 +1,20 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title><%= title %></title>
-  <link rel="stylesheet" href="/public/css/styles.css">
-</head>
-<body>
-  <header>
-    <h1>Our Menu</h1>
-    <nav>
-      <a href="/">Home</a> |
-      <a href="/about">About</a>
-    </nav>
-  </header>
-  <main>
-    <ul>
-      <li>Classic Burger</li>
-      <li>Spicy Chicken Sandwich</li>
-      <li>Veggie Wrap</li>
-      <li>Fries & Shakes</li>
-    </ul>
-  </main>
-  <footer>© <%= new Date().getFullYear() %> WeEat Inc.</footer>
-</body>
-</html>
+<%- include('partials/header', { user: user }) %>
+
+<h2>Our Menu</h2>
+
+<section class="food-grid">
+  <% foods.forEach(food => { %>
+    <div class="food-item">
+      <img src="<%= food.image %>" alt="<%= food.name %>">
+      <h3><%= food.name %></h3>
+      <p>$<%= food.price.toFixed(2) %></p>
+      <form method="POST" action="/cart/add">
+        <input type="hidden" name="foodName" value="<%= food.name %>">
+        <input type="hidden" name="price" value="<%= food.price %>">
+        <button type="submit">Add to Cart</button>
+      </form>
+    </div>
+  <% }) %>
+</section>
+
+<%- include('partials/footer') %>

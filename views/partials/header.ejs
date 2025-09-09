@@ -2,28 +2,24 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>WeEat 🍔</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <title><%= title || "WeEat" %></title>
+  <link rel="stylesheet" href="/public/css/styles.css">
 </head>
 <body>
   <div class="wrapper">
-    <header>
-      <nav class="navbar">
-        <div class="logo">
-          <a href="/">WeEat 🍔</a>
-        </div>
-        <ul class="nav-links">
-          <li><a href="/">Home</a></li>
-          <li><a href="/complaints">Complaints</a></li>
-          <li><a href="/orders">Orders</a></li>
-          <li><a href="/profile">Profile</a></li>
-          <% if (user) { %>
-            <li><a href="/auth/logout">Logout</a></li>
-          <% } else { %>
-            <li><a href="/auth/login">Login</a></li>
-            <li><a href="/auth/register">Register</a></li>
-          <% } %>
-        </ul>
-      </nav>
+    <header class="navbar">
+      <div class="logo"><a href="/">WeEat 🍔</a></div>
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="/menu">Menu</a></li>
+        <li><a href="/about">About</a></li>
+        <% if (user) { %>
+          <li><a href="/profile"><%= user.username %></a></li>
+          <li><a href="/logout">Logout</a></li>
+        <% } else { %>
+          <li><a href="/auth/login">Login</a></li>
+          <li><a href="/auth/register">Register</a></li>
+        <% } %>
+      </ul>
     </header>
-    <div class="content">
+    <main class="content">

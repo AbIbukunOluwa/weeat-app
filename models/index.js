@@ -1,50 +1,40 @@
-const { sequelize } = require('../config/db');
-const initUser = require('./User');
-const initOrder = require('./Order');
-const initComplaint = require('./Complaint');
-const initVulnerability = require('./Vulnerability');
-const initProduct = require('./Product');
-const initCart = require('./Cart');
-const initCartItem = require('./CartItem');
+const { Sequelize, DataTypes } = require('sequelize');
+const sequelize = require('../config/db'); // make sure this exports a Sequelize instance
+
+// Import models
+const UserModel = require('./User');
+const OrderModel = require('./Order');
+const ComplaintModel = require('./Complaint');
+const VulnerabilityModel = require('./Vulnerability');
+const CartItemModel = require('./CartItem');
 
 // Initialize models
-const User = initUser(sequelize);
-const Order = initOrder(sequelize);
-const Complaint = initComplaint(sequelize);
-const Vulnerability = initVulnerability(sequelize);
-const Product = initProduct(sequelize);
-const Cart = initCart(sequelize);
-const CartItem = initCartItem(sequelize);
+const User = UserModel(sequelize, DataTypes);
+const Order = OrderModel(sequelize, DataTypes);
+const Complaint = ComplaintModel(sequelize, DataTypes);
+const Vulnerability = VulnerabilityModel(sequelize, DataTypes);
+const CartItem = CartItemModel(sequelize, DataTypes);
 
-// Associations
-
-// User ↔ Orders
+// Setup relationships
 User.hasMany(Order, { foreignKey: 'userId' });
 Order.belongsTo(User, { foreignKey: 'userId' });
 
-// User ↔ Complaints
 User.hasMany(Complaint, { foreignKey: 'userId' });
 Complaint.belongsTo(User, { foreignKey: 'userId' });
 
-// User ↔ Cart
-User.hasOne(Cart, { foreignKey: 'userId', onDelete: 'CASCADE' });
-Cart.belongsTo(User, { foreignKey: 'userId' });
+User.hasMany(CartItem, { foreignKey: 'userId' });
+CartItem.belongsTo(User, { foreignKey: 'userId' });
 
-// Cart ↔ CartItems
-Cart.hasMany(CartItem, { foreignKey: 'cartId', onDelete: 'CASCADE' });
-CartItem.belongsTo(Cart, { foreignKey: 'cartId' });
+// (Optional) Vulnerabilities can be assigned to staff/admin users
+Vulnerability.belongsTo(User, { foreignKey: 'assignedTo', as: 'assignedUser' });
+User.hasMany(Vulnerability, { foreignKey: 'assignedTo', as: 'assignedVulnerabilities' });
 
-// Product ↔ CartItems
-Product.hasMany(CartItem, { foreignKey: 'productId', onDelete: 'CASCADE' });
-CartItem.belongsTo(Product, { foreignKey: 'productId' });
-
-module.exports = { 
-  sequelize, 
-  User, 
-  Order, 
-  Complaint, 
-  Vulnerability, 
-  Product, 
-  Cart, 
-  CartItem 
+module.exports = {
+  sequelize,
+  Sequelize,
+  User,
+  Order,
+  Complaint,
+  CartItem,
+  Vulnerability
 };

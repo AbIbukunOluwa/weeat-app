@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const Food = require('../models/food');
+const { Food } = require('../models');
 
+// GET /menu
 router.get('/', async (req, res) => {
   try {
     const foods = await Food.findAll();
-    res.render('dashboard', { user: req.session.user, foods });
+    res.render('menu', { user: req.user, foods, title: 'Menu' });
   } catch (err) {
     console.error(err);
-    res.status(500).send("Something went wrong");
+    res.status(500).send('Something went wrong fetching the menu.');
   }
 });
 

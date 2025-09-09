@@ -2,64 +2,57 @@ const express = require('express');
 const router = express.Router();
 const { User } = require('../models');
 
-// GET register
-router.get('/register', (req, res) => res.render('auth/register', { title: 'Register', error: null }));
+router.get('/register', (req, res) => {
+  res.render('auth/register', { error: null });
+});
 
-// POST register
 router.post('/register', async (req, res) => {
   try {
-    const { name, username, email, password, passwordConfirm } = req.body;
-    if (!name || !username || !email || !password || !passwordConfirm) {
-      return res.render('auth/register', { title: 'Register', error: 'All fields are required.' });
-    }
-    if (password !== passwordConfirm) {
-      return res.render('auth/register', { title: 'Register', error: 'Passwords do not match.' });
-    }
+    const { name, email, username, password, password2 } = req.body;
+    if (!name || !email || !username || !password || !password2)
+      return res.render('auth/register', { error: 'All fields are required.' });
+    if (password !== password2)
+      return res.render('auth/register', { error: 'Passwords do not match.' });
 
-    const exists = await User.findOne({ where: { email } }) || await User.findOne({ where: { username } });
-    if (exists) {
-      return res.render('auth/register', { title: 'Register', error: 'Email or username already taken.' });
-    }
+    let user = await User.findOne({ where: { email } });
+    if (user) return res.render('auth/register', { error: 'Email already registered.' });
 
-    const user = await User.create({ name, username, email, passwordHash: 'temp' });
+    user = User.build({ name, email, username });
     await user.setPassword(password);
     await user.save();
 
-    req.session.user = { id: user.id, username: user.username, email: user.email, role: user.role };
-    res.redirect('/');
+    req.session.user = { id: user.id, username: user.username };
+    res.redirect('/dashboard');
   } catch (err) {
     console.error(err);
-    res.render('auth/register', { title: 'Register', error: 'Something went wrong.' });
+    res.render('auth/register', { error: 'Something went wrong.' });
   }
 });
 
-// GET login
-router.get('/login', (req, res) => res.render('auth/login', { title: 'Login', error: null }));
+router.get('/login', (req, res) => {
+  res.render('auth/login', { error: null });
+});
 
-// POST login
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
-      return res.render('auth/login', { title: 'Login', error: 'All fields are required.' });
-    }
+    if (!email || !password) return res.render('auth/login', { error: 'All fields are required.' });
 
     const user = await User.findOne({ where: { email } });
-    if (!user || !(await user.validatePassword(password))) {
-      return res.render('auth/login', { title: 'Login', error: 'Invalid email or password.' });
-    }
+    if (!user || !(await user.checkPassword(password)))
+      return res.render('auth/login', { error: 'Invalid email or password.' });
 
-    req.session.user = { id: user.id, username: user.username, email: user.email, role: user.role };
-    res.redirect('/');
+    req.session.user = { id: user.id, username: user.username };
+    res.redirect('/dashboard');
   } catch (err) {
     console.error(err);
-    res.render('auth/login', { title: 'Login', error: 'Something went wrong.' });
+    res.render('auth/login', { error: 'Something went wrong.' });
   }
 });
 
-// GET logout
 router.get('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/'));
+  req.session.destroy();
+  res.redirect('/auth/login');
 });
 
 module.exports = router;

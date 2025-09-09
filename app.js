@@ -15,6 +15,7 @@ const complaintsRoutes = require('./routes/complaints');
 const contactRoutes = require('./routes/contact');
 const vulnsRoutes = require('./routes/vulns');
 const profileRoutes = require('./routes/profile');
+const cartRoutes = require('./routes/cart');
 
 let staffRoutes, dashboardRoutes;
 try { staffRoutes = require('./routes/staff'); } catch {}
@@ -58,6 +59,7 @@ app.use('/complaints', complaintsRoutes);
 app.use('/contact', contactRoutes);
 app.use('/vulns', vulnsRoutes);
 app.use('/profile', profileRoutes);
+app.use('/cart', cartRoutes);
 
 if (dashboardRoutes) app.use('/dashboard', dashboardRoutes);
 if (staffRoutes) app.use('/staff', staffRoutes);
