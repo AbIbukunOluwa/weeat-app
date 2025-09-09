@@ -1,20 +1,537 @@
 <%- include('partials/header', { user: user }) %>
 
-<h2>Our Menu</h2>
+<h1>🍔 Our Delicious Menu</h1>
 
-<section class="food-grid">
-  <% foods.forEach(food => { %>
-    <div class="food-item">
-      <img src="<%= food.image %>" alt="<%= food.name %>">
-      <h3><%= food.name %></h3>
-      <p>$<%= food.price.toFixed(2) %></p>
-      <form method="POST" action="/cart/add">
-        <input type="hidden" name="foodName" value="<%= food.name %>">
-        <input type="hidden" name="price" value="<%= food.price %>">
-        <button type="submit">Add to Cart</button>
-      </form>
+<!-- Search and Filter Section -->
+<div class="menu-controls">
+  <form method="GET" action="/menu" class="search-form">
+    <div class="search-group">
+      <input type="text" name="search" placeholder="Search menu items..." value="<%= search || '' %>">
+      <select name="category">
+        <option value="">All Categories</option>
+        <option value="mains" <%= category === 'mains' ? 'selected' : '' %>>Main Courses</option>
+        <option value="appetizers" <%= category === 'appetizers' ? 'selected' : '' %>>Appetizers</option>
+        <option value="sides" <%= category === 'sides' ? 'selected' : '' %>>Sides</option>
+        <option value="desserts" <%= category === 'desserts' ? 'selected' : '' %>>Desserts</option>
+        <option value="beverages" <%= category === 'beverages' ? 'selected' : '' %>>Beverages</option>
+      </select>
+      <button type="submit">Search</button>
     </div>
-  <% }) %>
+  </form>
+  
+  <!-- VULNERABILITY A03: XSS via search results -->
+  <% if (search) { %>
+    <div class="search-results">
+      <p>Showing results for: <strong><%- search %></strong></p>
+    </div>
+  <% } %>
+</div>
+
+<!-- Menu Grid -->
+<section class="food-grid">
+  <% if (foods && foods.length > 0) { %>
+    <% foods.forEach((food, index) => { %>
+      <div class="food-item" data-food-id="<%= food.id %>" data-index="<%= index %>">
+        <!-- VULNERABILITY A10: SSRF via image proxy -->
+        <img src="<%= food.image %>" 
+             alt="<%= food.name %>" 
+             onerror="handleImageError(this, '<%= food.id %>')"
+             loading="lazy">
+        
+        <div class="food-info">
+          <h3><%= food.name %></h3>
+          
+          <% if (food.description) { %>
+            <p class="description"><%= food.description %></p>
+          <% } %>
+          
+          <!-- VULNERABILITY A08: Price manipulation -->
+          <p class="price" data-original-price="<%= food.price %>">
+            $<span class="price-value"><%= food.price ? food.price.toFixed(2) : '0.00' %></span>
+          </p>
+          
+          <% if (user) { %>
+            <div class="add-to-cart-section">
+              <form class="add-to-cart-form" onsubmit="return addToCartWithValidation(event, this)">
+                <input type="hidden" name="foodName" value="<%= food.name %>">
+                <!-- VULNERABILITY: Client-side price that can be manipulated -->
+                <input type="hidden" name="price" class="manipulatable-price" value="<%= food.price %>">
+                
+                <div class="quantity-controls">
+                  <button type="button" onclick="decreaseQuantity(this)">-</button>
+                  <input type="number" name="quantity" value="1" min="1" max="99" class="quantity-input">
+                  <button type="button" onclick="increaseQuantity(this)">+</button>
+                </div>
+                
+                <button type="submit" class="add-to-cart-btn">
+                  Add to Cart - $<span class="item-total"><%= food.price ? food.price.toFixed(2) : '0.00' %></span>
+                </button>
+              </form>
+              
+              <!-- Quick price modification for testing -->
+              <div class="price-controls" style="margin-top: 10px; font-size: 12px;">
+                <button onclick="modifyPrice(this, 0.01)" class="price-mod-btn">$0.01</button>
+                <button onclick="modifyPrice(this, 0.50)" class="price-mod-btn">Half Price</button>
+                <button onclick="modifyPrice(this, -5.00)" class="price-mod-btn">-$5</button>
+              </div>
+            </div>
+          <% } else { %>
+            <p class="login-prompt">
+              <a href="/auth/login">Login</a> to add items to your cart
+            </p>
+          <% } %>
+          
+          <!-- Food details link with IDOR vulnerability -->
+          <a href="/menu/food/<%= food.id %>" class="details-link">View Details</a>
+        </div>
+      </div>
+    <% }) %>
+  <% } else { %>
+    <div class="no-results">
+      <h3>No menu items found</h3>
+      <% if (search || category) { %>
+        <p>Try adjusting your search or <a href="/menu">view all items</a></p>
+      <% } else { %>
+        <p>Our menu is currently being updated. Please check back later!</p>
+      <% } %>
+    </div>
+  <% } %>
 </section>
+
+<!-- Review submission form with XSS vulnerability -->
+<% if (user) { %>
+<div class="review-section">
+  <h3>📝 Leave a Review</h3>
+  <form id="reviewForm" onsubmit="return submitReview(event)">
+    <select name="foodId" required>
+      <option value="">Select a food item...</option>
+      <% foods.forEach(food => { %>
+        <option value="<%= food.id %>"><%= food.name %></option>
+      <% }) %>
+    </select>
+    
+    <select name="rating" required>
+      <option value="">Rating...</option>
+      <option value="5">⭐⭐⭐⭐⭐ (5 stars)</option>
+      <option value="4">⭐⭐⭐⭐ (4 stars)</option>
+      <option value="3">⭐⭐⭐ (3 stars)</option>
+      <option value="2">⭐⭐ (2 stars)</option>
+      <option value="1">⭐ (1 star)</option>
+    </select>
+    
+    <!-- VULNERABILITY A03: XSS via comment field -->
+    <textarea name="comment" placeholder="Share your experience..." rows="3" required></textarea>
+    
+    <button type="submit">Submit Review</button>
+  </form>
+</div>
+<% } %>
+
+<script>
+// VULNERABILITY A08: Client-side price manipulation
+function modifyPrice(button, newPrice) {
+  const foodItem = button.closest('.food-item');
+  const priceInput = foodItem.querySelector('.manipulatable-price');
+  const priceDisplay = foodItem.querySelector('.price-value');
+  const itemTotal = foodItem.querySelector('.item-total');
+  const quantity = parseInt(foodItem.querySelector('.quantity-input').value) || 1;
+  
+  if (newPrice === 0.50) {
+    // Half price
+    newPrice = parseFloat(priceInput.value) * 0.5;
+  }
+  
+  const currentPrice = parseFloat(priceInput.value);
+  const finalPrice = Math.max(0.01, currentPrice + newPrice);
+  
+  priceInput.value = finalPrice.toFixed(2);
+  priceDisplay.textContent = finalPrice.toFixed(2);
+  itemTotal.textContent = (finalPrice * quantity).toFixed(2);
+  
+  console.log('Price modified:', {
+    original: currentPrice,
+    new: finalPrice,
+    difference: newPrice
+  });
+}
+
+function increaseQuantity(button) {
+  const input = button.parentNode.querySelector('.quantity-input');
+  const newValue = Math.min(99, parseInt(input.value) + 1);
+  input.value = newValue;
+  updateItemTotal(input);
+}
+
+function decreaseQuantity(button) {
+  const input = button.parentNode.querySelector('.quantity-input');
+  const newValue = Math.max(1, parseInt(input.value) - 1);
+  input.value = newValue;
+  updateItemTotal(input);
+}
+
+function updateItemTotal(quantityInput) {
+  const foodItem = quantityInput.closest('.food-item');
+  const price = parseFloat(foodItem.querySelector('.manipulatable-price').value);
+  const quantity = parseInt(quantityInput.value) || 1;
+  const total = (price * quantity).toFixed(2);
+  
+  foodItem.querySelector('.item-total').textContent = total;
+}
+
+// Add event listeners for quantity inputs
+document.addEventListener('DOMContentLoaded', function() {
+  const quantityInputs = document.querySelectorAll('.quantity-input');
+  quantityInputs.forEach(input => {
+    input.addEventListener('change', () => updateItemTotal(input));
+  });
+});
+
+function addToCartWithValidation(event, form) {
+  event.preventDefault();
+  
+  const formData = new FormData(form);
+  const foodName = formData.get('foodName');
+  const price = parseFloat(formData.get('price'));
+  const quantity = parseInt(formData.get('quantity')) || 1;
+  
+  // VULNERABILITY A08: No server-side price validation
+  fetch('/menu/add-to-cart', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      foodName: foodName,
+      price: price, // Manipulatable price
+      quantity: quantity
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert(`✅ ${data.message}`);
+      
+      // VULNERABILITY A02: Expose debug information
+      if (data.debug) {
+        console.log('Cart addition debug:', data.debug);
+      }
+    } else {
+      alert(`❌ ${data.error}`);
+    }
+  })
+  .catch(error => {
+    console.error('Error adding to cart:', error);
+    alert('❌ Failed to add to cart');
+  });
+  
+  return false;
+}
+
+// VULNERABILITY A03: XSS in review submission
+function submitReview(event) {
+  event.preventDefault();
+  
+  const formData = new FormData(event.target);
+  const reviewData = {
+    foodId: formData.get('foodId'),
+    rating: formData.get('rating'),
+    comment: formData.get('comment') // Not sanitized!
+  };
+  
+  fetch('/menu/review', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(reviewData)
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ Review submitted successfully!');
+      event.target.reset();
+      
+      // VULNERABILITY A02: Log debug information
+      if (data.debug) {
+        console.log('Review debug info:', data.debug);
+      }
+    } else {
+      alert(`❌ ${data.error}`);
+    }
+  })
+  .catch(error => {
+    console.error('Review submission error:', error);
+    alert('❌ Failed to submit review');
+  });
+  
+  return false;
+}
+
+// VULNERABILITY A10: SSRF via image error handling
+function handleImageError(img, foodId) {
+  console.log('Image failed to load for food ID:', foodId);
+  
+  // Attempt to load from alternative source (could be exploited)
+  const fallbackUrl = `/proxy/image?url=${encodeURIComponent(img.src)}`;
+  
+  fetch(fallbackUrl)
+    .then(response => {
+      if (response.ok) {
+        return response.blob();
+      }
+      throw new Error('Fallback image failed');
+    })
+    .then(blob => {
+      img.src = URL.createObjectURL(blob);
+    })
+    .catch(error => {
+      console.error('Fallback image error:', error);
+      img.src = '/public/images/placeholder.jpg';
+    });
+}
+</script>
+
+<style>
+.menu-controls {
+  margin: 20px 0;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.search-form {
+  margin-bottom: 15px;
+}
+
+.search-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.search-group input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.search-group select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+}
+
+.search-results {
+  padding: 10px;
+  background: #e7f3ff;
+  border: 1px solid #b8daff;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.food-item {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.food-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+
+.food-item img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.food-info {
+  padding: 20px;
+}
+
+.food-info h3 {
+  margin: 0 0 10px 0;
+  color: var(--primary-red);
+  font-size: 1.3em;
+}
+
+.description {
+  color: #666;
+  font-size: 0.9em;
+  margin: 10px 0;
+  line-height: 1.4;
+}
+
+.price {
+  font-size: 1.4em;
+  font-weight: bold;
+  color: var(--primary-red);
+  margin: 15px 0;
+}
+
+.quantity-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.quantity-controls button {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #ddd;
+  background: #f8f9fa;
+  border-radius: 50%;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.quantity-controls button:hover {
+  background: var(--accent-yellow);
+  color: white;
+  border-color: var(--accent-yellow);
+}
+
+.quantity-input {
+  width: 60px;
+  text-align: center;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.add-to-cart-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--accent-yellow);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.add-to-cart-btn:hover {
+  background: var(--primary-red);
+}
+
+.price-controls {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.price-mod-btn {
+  padding: 4px 8px;
+  font-size: 10px;
+  background: #ffc107;
+  color: #000;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.price-mod-btn:hover {
+  opacity: 1;
+}
+
+.details-link {
+  display: inline-block;
+  margin-top: 10px;
+  color: var(--accent-green);
+  text-decoration: none;
+  font-size: 0.9em;
+}
+
+.details-link:hover {
+  text-decoration: underline;
+}
+
+.login-prompt {
+  text-align: center;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  margin-top: 15px;
+}
+
+.login-prompt a {
+  color: var(--primary-red);
+  font-weight: bold;
+}
+
+.review-section {
+  margin: 40px 0;
+  padding: 25px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.review-section form {
+  display: grid;
+  gap: 15px;
+  max-width: 500px;
+}
+
+.review-section select,
+.review-section textarea {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+}
+
+.review-section button {
+  padding: 12px 24px;
+  background: var(--accent-green);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.review-section button:hover {
+  background: #6a9f17;
+}
+
+.no-results {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.no-results h3 {
+  margin-bottom: 15px;
+  color: var(--text-gray);
+}
+
+@media (max-width: 768px) {
+  .search-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .search-group input[type="text"],
+  .search-group select {
+    width: 100%;
+  }
+  
+  .price-controls {
+    flex-wrap: wrap;
+  }
+}
+</style>
 
 <%- include('partials/footer') %>

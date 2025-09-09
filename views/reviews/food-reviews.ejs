@@ -1,0 +1,756 @@
+<%- include('../partials/header', { title: title }) %>
+
+<div class="reviews-page">
+  <div class="reviews-header">
+    <h1>🍽️ Reviews for <%= food ? food.name : 'Food Item' %></h1>
+    <% if (food) { %>
+      <div class="food-info">
+        <img src="<%= food.image %>" alt="<%= food.name %>" class="food-image">
+        <div class="food-details">
+          <h2><%= food.name %></h2>
+          <p class="food-price">$<%= food.price ? food.price.toFixed(2) : '0.00' %></p>
+          <% if (food.description) { %>
+            <p class="food-description"><%= food.description %></p>
+          <% } %>
+        </div>
+      </div>
+    <% } %>
+  </div>
+
+  <!-- Review Submission Form (VULNERABILITY: Stored XSS) -->
+  <% if (user) { %>
+    <div class="review-form-section">
+      <h2>📝 Share Your Experience</h2>
+      <form id="reviewForm" class="review-form">
+        <input type="hidden" name="foodId" value="<%= foodId %>">
+        
+        <div class="form-group">
+          <label for="rating">Rating:</label>
+          <div class="rating-input">
+            <input type="radio" name="rating" value="5" id="star5" required>
+            <label for="star5" class="star">⭐</label>
+            <input type="radio" name="rating" value="4" id="star4">
+            <label for="star4" class="star">⭐</label>
+            <input type="radio" name="rating" value="3" id="star3">
+            <label for="star3" class="star">⭐</label>
+            <input type="radio" name="rating" value="2" id="star2">
+            <label for="star2" class="star">⭐</label>
+            <input type="radio" name="rating" value="1" id="star1">
+            <label for="star1" class="star">⭐</label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="title">Review Title:</label>
+          <!-- VULNERABILITY: No XSS protection - stored XSS possible -->
+          <input type="text" id="title" name="title" placeholder="Summarize your experience..." required>
+        </div>
+
+        <div class="form-group">
+          <label for="comment">Your Review:</label>
+          <!-- VULNERABILITY: No XSS protection - stored XSS possible -->
+          <textarea id="comment" name="comment" rows="5" 
+            placeholder="Tell us about your experience with this food..." required></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-submit">Submit Review</button>
+          <button type="button" onclick="fillSampleReview()" class="btn-sample">Load Sample</button>
+        </div>
+      </form>
+    </div>
+  <% } else { %>
+    <div class="login-prompt">
+      <h3>Want to leave a review?</h3>
+      <p><a href="/auth/login">Login</a> or <a href="/auth/register">Register</a> to share your experience!</p>
+    </div>
+  <% } %>
+
+  <!-- Reviews Display (VULNERABILITY: XSS Execution) -->
+  <div class="reviews-section">
+    <div class="reviews-stats">
+      <h2>Customer Reviews (<%= reviews.length %>)</h2>
+      <% if (reviews.length > 0) { %>
+        <div class="average-rating">
+          <% 
+            const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+            const stars = '⭐'.repeat(Math.round(avgRating));
+          %>
+          <span class="stars"><%= stars %></span>
+          <span class="rating-text"><%= avgRating.toFixed(1) %> out of 5 stars</span>
+        </div>
+      <% } %>
+    </div>
+
+    <div class="reviews-list">
+      <% if (reviews.length === 0) { %>
+        <div class="no-reviews">
+          <h3>No reviews yet</h3>
+          <p>Be the first to review this item!</p>
+        </div>
+      <% } else { %>
+        <% reviews.forEach(review => { %>
+          <div class="review-item">
+            <div class="review-header">
+              <div class="reviewer-info">
+                <span class="reviewer-name"><%= review.User ? review.User.username : 'Anonymous' %></span>
+                <span class="review-date"><%= new Date(review.createdAt).toLocaleDateString() %></span>
+              </div>
+              <div class="review-rating">
+                <% const stars = '⭐'.repeat(review.rating); %>
+                <span class="stars"><%= stars %></span>
+              </div>
+            </div>
+            
+            <div class="review-content">
+              <!-- VULNERABILITY: Stored XSS - title and comment rendered without escaping -->
+              <h4 class="review-title"><%- review.title %></h4>
+              <p class="review-comment"><%- review.comment %></p>
+            </div>
+            
+            <div class="review-actions">
+              <button onclick="likeReview(<%= review.id %>)" class="action-btn">
+                👍 Helpful (<span id="likes-<%= review.id %>">0</span>)
+              </button>
+              <button onclick="reportReview(<%= review.id %>)" class="action-btn">
+                🚩 Report
+              </button>
+              
+              <!-- Admin actions (VULNERABILITY: Missing CSRF protection) -->
+              <% if (user && user.role === 'admin') { %>
+                <button onclick="deleteReview(<%= review.id %>)" class="action-btn admin-action">
+                  🗑️ Delete
+                </button>
+                <button onclick="editReview(<%= review.id %>)" class="action-btn admin-action">
+                  ✏️ Edit
+                </button>
+              <% } %>
+            </div>
+          </div>
+        <% }) %>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Review Filter & Sort -->
+  <div class="review-controls">
+    <div class="filter-section">
+      <label>Filter by rating:</label>
+      <select id="ratingFilter" onchange="filterReviews()">
+        <option value="">All ratings</option>
+        <option value="5">5 stars ⭐⭐⭐⭐⭐</option>
+        <option value="4">4 stars ⭐⭐⭐⭐</option>
+        <option value="3">3 stars ⭐⭐⭐</option>
+        <option value="2">2 stars ⭐⭐</option>
+        <option value="1">1 star ⭐</option>
+      </select>
+    </div>
+    
+    <div class="sort-section">
+      <label>Sort by:</label>
+      <select id="sortOrder" onchange="sortReviews()">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="highest">Highest rating</option>
+        <option value="lowest">Lowest rating</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<script>
+// Review submission with XSS vulnerability
+document.getElementById('reviewForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const formData = new FormData(e.target);
+  const reviewData = {
+    foodId: formData.get('foodId'),
+    rating: formData.get('rating'),
+    title: formData.get('title'),    // VULNERABILITY: No client-side sanitization
+    comment: formData.get('comment') // VULNERABILITY: No client-side sanitization
+  };
+  
+  try {
+    const response = await fetch('/reviews/submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(reviewData)
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      alert('✅ Review submitted successfully!');
+      location.reload(); // Reload to show new review
+    } else {
+      alert('❌ Error: ' + result.error);
+    }
+    
+    // VULNERABILITY: Log sensitive debug information
+    if (result.debug) {
+      console.log('Review submission debug:', result.debug);
+    }
+    
+  } catch (error) {
+    console.error('Review submission error:', error);
+    alert('❌ Failed to submit review. Please try again.');
+  }
+});
+
+// Admin review management (VULNERABILITY: No CSRF protection)
+async function deleteReview(reviewId) {
+  if (!confirm('Are you sure you want to delete this review?')) return;
+  
+  try {
+    const response = await fetch(`/reviews/admin/delete/${reviewId}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+      // VULNERABILITY: No CSRF token included
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      alert('Review deleted successfully');
+      location.reload();
+    } else {
+      alert('Failed to delete review: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Delete error:', error);
+    alert('Failed to delete review');
+  }
+}
+
+// Sample review with XSS payload for testing
+function fillSampleReview() {
+  document.getElementById('title').value = '<script>alert("Stored XSS in title!")</script>';
+  document.getElementById('comment').value = 'Great food! <img src=x onerror="alert(\'Stored XSS in comment!\')"> Highly recommended!';
+  document.querySelector('input[name="rating"][value="5"]').checked = true;
+}
+
+// Review interaction functions
+function likeReview(reviewId) {
+  // VULNERABILITY: No authentication check
+  const likesElement = document.getElementById(`likes-${reviewId}`);
+  const currentLikes = parseInt(likesElement.textContent);
+  likesElement.textContent = currentLikes + 1;
+  
+  // VULNERABILITY: No CSRF protection on like action
+  fetch(`/reviews/${reviewId}/like`, { 
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  }).catch(err => console.log('Like error:', err));
+}
+
+function reportReview(reviewId) {
+  const reason = prompt('Why are you reporting this review?');
+  if (!reason) return;
+  
+  // VULNERABILITY: No validation of report reason
+  fetch(`/reviews/${reviewId}/report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason: reason })
+  })
+  .then(response => response.json())
+  .then(result => {
+    alert(result.success ? 'Review reported successfully' : 'Failed to report review');
+  })
+  .catch(err => console.error('Report error:', err));
+}
+
+function editReview(reviewId) {
+  // VULNERABILITY: Client-side admin check only
+  if (!<%= user && user.role === 'admin' ? 'true' : 'false' %>) {
+    alert('Admin access required');
+    return;
+  }
+  
+  const newTitle = prompt('Enter new title:');
+  const newComment = prompt('Enter new comment:');
+  
+  if (newTitle && newComment) {
+    // VULNERABILITY: No CSRF protection on edit
+    fetch(`/reviews/admin/edit/${reviewId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        title: newTitle,    // VULNERABILITY: No sanitization
+        comment: newComment // VULNERABILITY: No sanitization
+      })
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (result.success) {
+        alert('Review updated successfully');
+        location.reload();
+      } else {
+        alert('Failed to update review');
+      }
+    })
+    .catch(err => console.error('Edit error:', err));
+  }
+}
+
+// Filter and sort functionality
+function filterReviews() {
+  const selectedRating = document.getElementById('ratingFilter').value;
+  const reviews = document.querySelectorAll('.review-item');
+  
+  reviews.forEach(review => {
+    if (!selectedRating) {
+      review.style.display = 'block';
+    } else {
+      const stars = review.querySelector('.review-rating .stars').textContent.length;
+      review.style.display = stars == selectedRating ? 'block' : 'none';
+    }
+  });
+}
+
+function sortReviews() {
+  const sortOrder = document.getElementById('sortOrder').value;
+  const reviewsList = document.querySelector('.reviews-list');
+  const reviews = Array.from(reviewsList.querySelectorAll('.review-item'));
+  
+  reviews.sort((a, b) => {
+    const dateA = new Date(a.querySelector('.review-date').textContent);
+    const dateB = new Date(b.querySelector('.review-date').textContent);
+    const ratingA = a.querySelector('.review-rating .stars').textContent.length;
+    const ratingB = b.querySelector('.review-rating .stars').textContent.length;
+    
+    switch (sortOrder) {
+      case 'oldest':
+        return dateA - dateB;
+      case 'highest':
+        return ratingB - ratingA;
+      case 'lowest':
+        return ratingA - ratingB;
+      case 'newest':
+      default:
+        return dateB - dateA;
+    }
+  });
+  
+  // Re-append sorted reviews
+  reviews.forEach(review => reviewsList.appendChild(review));
+}
+
+// VULNERABILITY: Execute any XSS in reviews on page load
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('Reviews page loaded for food ID:', '<%= foodId %>');
+  
+  // VULNERABILITY: Log review content (may contain XSS)
+  const reviewTitles = Array.from(document.querySelectorAll('.review-title')).map(el => el.innerHTML);
+  console.log('Review titles:', reviewTitles);
+});
+</script>
+
+<style>
+.reviews-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+
+.reviews-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.reviews-header h1 {
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 25px;
+}
+
+.food-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 30px;
+  padding: 25px;
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  margin-bottom: 30px;
+}
+
+.food-image {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.food-details h2 {
+  color: var(--primary-red);
+  margin: 0 0 10px 0;
+  font-size: 1.8em;
+}
+
+.food-price {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: var(--accent-yellow);
+  margin: 0 0 10px 0;
+}
+
+.food-description {
+  color: #666;
+  font-size: 1.1em;
+  margin: 0;
+}
+
+.review-form-section {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+  margin-bottom: 40px;
+}
+
+.review-form-section h2 {
+  color: var(--primary-red);
+  margin: 0 0 25px 0;
+  font-size: 1.6em;
+}
+
+.review-form {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.form-group {
+  margin-bottom: 25px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #333;
+}
+
+.rating-input {
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.rating-input input[type="radio"] {
+  display: none;
+}
+
+.rating-input .star {
+  font-size: 2em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0.3;
+}
+
+.rating-input input[type="radio"]:checked ~ .star,
+.rating-input input[type="radio"]:checked ~ .star ~ .star {
+  opacity: 1;
+}
+
+.rating-input .star:hover,
+.rating-input .star:hover ~ .star {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.form-group input[type="text"],
+.form-group textarea {
+  width: 100%;
+  padding: 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 16px;
+  transition: border-color 0.2s ease;
+  font-family: inherit;
+}
+
+.form-group input[type="text"]:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent-yellow);
+}
+
+.form-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.btn-submit, .btn-sample {
+  padding: 15px 30px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-submit {
+  background: var(--primary-red);
+  color: white;
+}
+
+.btn-submit:hover {
+  background: #b91c1c;
+  transform: translateY(-2px);
+}
+
+.btn-sample {
+  background: var(--accent-yellow);
+  color: white;
+}
+
+.btn-sample:hover {
+  background: #ea580c;
+}
+
+.login-prompt {
+  text-align: center;
+  padding: 40px;
+  background: #f8f9fa;
+  border-radius: 15px;
+  margin-bottom: 40px;
+}
+
+.login-prompt h3 {
+  color: var(--primary-red);
+  margin-bottom: 15px;
+}
+
+.login-prompt a {
+  color: var(--accent-yellow);
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.login-prompt a:hover {
+  text-decoration: underline;
+}
+
+.reviews-section {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.reviews-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.reviews-stats h2 {
+  color: var(--primary-red);
+  margin: 0;
+  font-size: 1.6em;
+}
+
+.average-rating {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stars {
+  font-size: 1.2em;
+}
+
+.rating-text {
+  color: #666;
+  font-weight: 500;
+}
+
+.no-reviews {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.no-reviews h3 {
+  color: var(--primary-red);
+  margin-bottom: 15px;
+}
+
+.review-item {
+  padding: 25px;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  transition: box-shadow 0.2s ease;
+}
+
+.review-item:hover {
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.reviewer-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.reviewer-name {
+  font-weight: bold;
+  color: var(--primary-red);
+}
+
+.review-date {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.review-rating .stars {
+  font-size: 1.1em;
+}
+
+.review-content {
+  margin: 20px 0;
+}
+
+.review-title {
+  color: var(--primary-red);
+  font-size: 1.2em;
+  margin: 0 0 10px 0;
+  /* VULNERABILITY: XSS content will be rendered here */
+}
+
+.review-comment {
+  color: #444;
+  line-height: 1.6;
+  margin: 0;
+  /* VULNERABILITY: XSS content will be rendered here */
+}
+
+.review-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background: #f8f9fa;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
+}
+
+.admin-action {
+  border-color: var(--primary-red);
+  color: var(--primary-red);
+}
+
+.admin-action:hover {
+  background: var(--primary-red);
+  color: white;
+}
+
+.review-controls {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 30px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  gap: 20px;
+}
+
+.filter-section, .sort-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.filter-section label, .sort-section label {
+  font-weight: 600;
+  color: #333;
+}
+
+.filter-section select, .sort-section select {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+}
+
+@media (max-width: 768px) {
+  .reviews-page {
+    padding: 20px 15px;
+  }
+  
+  .food-info {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .reviews-stats {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .review-header {
+    flex-direction: column;
+    gap: 10px;
+    text-align: center;
+  }
+  
+  .reviewer-info {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .review-controls {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .filter-section, .sort-section {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .review-actions {
+    justify-content: center;
+  }
+}
+</style>
+
+<%- include('../partials/footer') %>

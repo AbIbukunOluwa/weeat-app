@@ -1,0 +1,212 @@
+<%- include('../partials/header', { user: user, title: title }) %>
+
+<div class="admin-dashboard">
+  <div class="dashboard-header">
+    <h1>🛡️ WeEat Administration Dashboard</h1>
+    <div class="admin-info">
+      <span class="admin-badge">Admin: <%= user.username %></span>
+      <span class="timestamp">Last Login: <%= new Date().toLocaleString() %></span>
+    </div>
+  </div>
+  
+  <!-- Stats Overview -->
+  <div class="stats-grid">
+    <div class="stat-card users">
+      <div class="stat-icon">👥</div>
+      <div class="stat-content">
+        <h3>Total Users</h3>
+        <p class="stat-number"><%= stats.totalUsers %></p>
+        <span class="stat-change positive">↑ +12 this week</span>
+      </div>
+    </div>
+    
+    <div class="stat-card orders">
+      <div class="stat-icon">📦</div>
+      <div class="stat-content">
+        <h3>Active Orders</h3>
+        <p class="stat-number"><%= stats.totalOrders %></p>
+        <span class="stat-change positive">↗ +5 today</span>
+      </div>
+    </div>
+    
+    <div class="stat-card complaints">
+      <div class="stat-icon">💬</div>
+      <div class="stat-content">
+        <h3>Open Complaints</h3>
+        <p class="stat-number"><%= stats.totalComplaints %></p>
+        <span class="stat-change critical">⚠ Needs attention</span>
+      </div>
+    </div>
+    
+    <div class="stat-card revenue">
+      <div class="stat-icon">💰</div>
+      <div class="stat-content">
+        <h3>Revenue (MTD)</h3>
+        <p class="stat-number">$24,567</p>
+        <span class="stat-change positive">↑ +18.5%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="quick-actions">
+    <h2>🚀 Management Tools</h2>
+    <div class="action-grid">
+      <a href="/admin/users" class="action-btn">
+        <span class="action-icon">👤</span>
+        <span class="action-text">User Management</span>
+      </a>
+      <a href="/admin/orders" class="action-btn">
+        <span class="action-icon">📋</span>
+        <span class="action-text">Order Processing</span>
+      </a>
+      <a href="/complaints" class="action-btn">
+        <span class="action-icon">🎧</span>
+        <span class="action-text">Handle Complaints</span>
+      </a>
+      <a href="/admin/reports" class="action-btn">
+        <span class="action-icon">📊</span>
+        <span class="action-text">Generate Reports</span>
+      </a>
+      <a href="/vulns" class="action-btn security">
+        <span class="action-icon">🔒</span>
+        <span class="action-text">Security Tracker</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- VULNERABILITY TESTING TOOLS -->
+  <div class="vulnerability-tools">
+    <h2>🔧 System Administration Tools</h2>
+    <div class="tools-warning">
+      ⚠️ <strong>Warning:</strong> These tools are for authorized administrators only. Misuse may result in system instability.
+    </div>
+    
+    <!-- VULNERABILITY #1: SQL Injection + XXE Tool -->
+    <div class="tool-section">
+      <h3>🗄️ Database & Configuration Manager</h3>
+      <div class="tool-tabs">
+        <button class="tab-btn active" onclick="switchTab('sql')">SQL Query</button>
+        <button class="tab-btn" onclick="switchTab('xml')">XML Config</button>
+        <button class="tab-btn" onclick="switchTab('import')">Bulk Import</button>
+      </div>
+      
+      <!-- SQL Query Tab (SQL Injection) -->
+      <div id="sql-tab" class="tab-content active">
+        <form id="sqlQueryForm" class="tool-form">
+          <div class="form-group">
+            <label for="sqlQuery">SQL Query:</label>
+            <textarea id="sqlQuery" name="sql" rows="8" placeholder="SELECT * FROM users WHERE role = 'admin';"
+              class="code-input"></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">Execute Query</button>
+            <button type="button" onclick="loadSampleQueries()" class="btn-secondary">Load Samples</button>
+            <button type="button" onclick="clearQuery()" class="btn-tertiary">Clear</button>
+          </div>
+          <div class="query-hints">
+            <small>💡 Try: <code>SELECT username,email,role FROM users;</code> or advanced joins</small>
+          </div>
+        </form>
+      </div>
+      
+      <!-- XML Config Tab (XXE Vulnerability) -->
+      <div id="xml-tab" class="tab-content">
+        <form id="xmlConfigForm" class="tool-form">
+          <div class="form-group">
+            <label for="xmlConfig">XML Configuration:</label>
+            <textarea id="xmlConfig" name="xml" rows="8" 
+              placeholder="<?xml version='1.0'?>&#10;<config>&#10;  <setting name='debug'>true</setting>&#10;</config>"
+              class="code-input"></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">Process XML</button>
+            <button type="button" onclick="loadSampleXML()" class="btn-secondary">Load Template</button>
+          </div>
+          <div class="query-hints">
+            <small>💡 Supports DTD entities and external references</small>
+          </div>
+        </form>
+      </div>
+      
+      <!-- File Import Tab -->
+      <div id="import-tab" class="tab-content">
+        <form id="fileImportForm" enctype="multipart/form-data" class="tool-form">
+          <div class="upload-zone" onclick="document.getElementById('configFile').click()">
+            <input type="file" id="configFile" name="config" accept=".xml,.json,.csv,.txt" style="display: none;">
+            <div class="upload-placeholder">
+              <span class="upload-icon">📁</span>
+              <span class="upload-text">Click to select configuration file</span>
+              <small>Supports: XML, JSON, CSV, TXT and more...</small>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">Upload & Process</button>
+          </div>
+        </form>
+      </div>
+      
+      <div id="queryResults" class="results-container"></div>
+    </div>
+
+    <!-- VULNERABILITY #2: Session/Object Deserialization -->
+    <div class="tool-section">
+      <h3>👤 Session & User Management</h3>
+      <div class="tool-grid">
+        <div class="tool-item">
+          <h4>Session Data Import</h4>
+          <form id="sessionImportForm">
+            <textarea id="sessionData" name="sessionData" rows="6" 
+              placeholder='{"user":{"id":1,"role":"admin","permissions":["all"]}}'
+              class="code-input"></textarea>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">Import Session</button>
+              <button type="button" onclick="exportCurrentSession()" class="btn-secondary">Export Current</button>
+            </div>
+          </form>
+        </div>
+        
+        <div class="tool-item">
+          <h4>Bulk User Preferences</h4>
+          <form id="preferencesForm">
+            <select id="encoding" name="encoding" class="form-select">
+              <option value="json">JSON Format</option>
+              <option value="base64">Base64 Encoded</option>
+              <option value="url">URL Encoded</option>
+            </select>
+            <textarea id="preferences" name="preferences" rows="4" 
+              placeholder='{"theme":"dark","notifications":true}'
+              class="code-input"></textarea>
+            <button type="submit" class="btn-primary">Apply Preferences</button>
+          </form>
+        </div>
+      </div>
+      <div id="sessionResults" class="results-container"></div>
+    </div>
+
+    <!-- VULNERABILITY #3: Command Injection Tool -->
+    <div class="tool-section">
+      <h3>🖥️ System Operations</h3>
+      <div class="tool-grid">
+        <div class="tool-item">
+          <h4>Log File Processor</h4>
+          <form id="logProcessForm">
+            <input type="text" id="logFile" name="logFile" placeholder="/var/log/weeat/access.log" class="form-input">
+            <select id="operation" name="operation" class="form-select">
+              <option value="cat">View File</option>
+              <option value="tail -n 50">Last 50 Lines</option>
+              <option value="grep 'ERROR'">Find Errors</option>
+              <option value="wc -l">Count Lines</option>
+            </select>
+            <button type="submit" class="btn-primary">Process</button>
+          </form>
+        </div>
+        
+        <div class="tool-item">
+          <h4>System Health Check</h4>
+          <form id="healthCheckForm">
+            <select id="healthCommand" name="command" class="form-select">
+              <option value="ps aux">Running Processes</option>
+              <option value="df -h">Disk Usage</option>
+              <option value="netstat -tulnp">Network Connections</option>
+              <option value

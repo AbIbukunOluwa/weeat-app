@@ -3,22 +3,269 @@
 <section class="hero">
   <h1>Welcome to WeEat 🍔</h1>
   <p>Your fast food cravings, all in one place.</p>
-  <p>Hello, <%= user.username %> 👋</p>
+  <p>Hello, <strong><%= user.username %></strong> 👋</p>
 </section>
 
+<!-- VULNERABILITY: XSS via search parameter -->
+<div class="search-section">
+  <h2>Search Our Menu</h2>
+  <form method="GET" action="/dashboard">
+    <input type="text" name="search" placeholder="Search for food..." value="<%= typeof search !== 'undefined' ? search : '' %>">
+    <button type="submit">Search</button>
+  </form>
+  
+  <% if (typeof search !== 'undefined' && search) { %>
+    <!-- VULNERABILITY A03: Reflected XSS -->
+    <p>Search results for: <strong><%- search %></strong></p>
+  <% } %>
+</div>
+
 <section class="food-grid">
-  <% foods.forEach(food => { %>
-    <div class="food-item">
-      <img src="<%= food.image %>" alt="<%= food.name %>">
-      <h3><%= food.name %></h3>
-      <p>$<%= food.price.toFixed(2) %></p>
-      <form method="POST" action="/cart/add">
-        <input type="hidden" name="foodName" value="<%= food.name %>">
-        <input type="hidden" name="price" value="<%= food.price %>">
-        <button type="submit">Add to Cart</button>
-      </form>
+  <% if (foods && foods.length > 0) { %>
+    <% foods.forEach(food => { %>
+      <div class="food-item" data-food-id="<%= food.id %>">
+        <img src="<%= food.image %>" alt="<%= food.name %>" onerror="this.src='/public/images/placeholder.jpg'">
+        <h3><%= food.name %></h3>
+        <p class="price" data-price="<%= food.price %>">$<%= food.price ? food.price.toFixed(2) : '0.00' %></p>
+        
+        <!-- VULNERABILITY A08: Client-side price validation -->
+        <form class="add-to-cart-form" onsubmit="return addToCart(event, this)">
+          <input type="hidden" name="foodName" value="<%= food.name %>">
+          <!-- VULNERABILITY: Price can be manipulated client-side -->
+          <input type="hidden" name="price" class="price-input" value="<%= food.price %>">
+          <input type="number" name="quantity" value="1" min="1" max="10">
+          <button type="submit">Add to Cart ($<span class="item-total"><%= food.price ? food.price.toFixed(2) : '0.00' %></span>)</button>
+        </form>
+      </div>
+    <% }) %>
+  <% } else { %>
+    <div class="no-results">
+      <p>No food items found.</p>
+      <% if (typeof search !== 'undefined' && search) { %>
+        <p>Try searching for something else or <a href="/dashboard">view all items</a>.</p>
+      <% } %>
     </div>
-  <% }) %>
+  <% } %>
 </section>
+
+<!-- Cart Summary -->
+<div class="cart-summary">
+  <h3>Quick Actions</h3>
+  <a href="/cart" class="cart-link">🛒 View Cart</a>
+  <a href="/orders" class="orders-link">📦 My Orders</a>
+  <a href="/complaints" class="complaints-link">💬 Complaints</a>
+</div>
+
+<!-- VULNERABILITY A02: Debug information exposure -->
+<% if (process.env.NODE_ENV === 'development') { %>
+<div class="debug-info">
+  <details>
+    <summary>🐛 Debug Information (Development Mode)</summary>
+    <pre>
+User Session: <%= JSON.stringify(user, null, 2) %>
+Request Info: {
+  "url": "<%= typeof originalUrl !== 'undefined' ? originalUrl : 'N/A' %>",
+  "method": "GET",
+  "timestamp": "<%= new Date().toISOString() %>"
+}
+Environment: {
+  "NODE_ENV": "<%= process.env.NODE_ENV %>",
+  "DATABASE": "<%= process.env.DB_NAME %>",
+  "HOST": "<%= process.env.DB_HOST %>"
+}
+    </pre>
+  </details>
+</div>
+<% } %>
+
+<script>
+// VULNERABILITY A08: Client-side price manipulation possible
+function addToCart(event, form) {
+  event.preventDefault();
+  
+  const formData = new FormData(form);
+  const quantity = parseInt(formData.get('quantity')) || 1;
+  const priceInput = form.querySelector('.price-input');
+  
+  // VULNERABILITY: User can modify price in browser dev tools
+  const price = parseFloat(priceInput.value);
+  
+  // Update total display
+  const itemTotal = (price * quantity).toFixed(2);
+  form.querySelector('.item-total').textContent = itemTotal;
+  
+  // Send request with potentially manipulated price
+  fetch('/dashboard/add-to-cart', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      foodName: formData.get('foodName'),
+      price: price, // Client-controlled price!
+      quantity: quantity
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert(`✅ ${data.message}`);
+      // VULNERABILITY A02: Log sensitive debug info to console
+      if (data.debug) {
+        console.log('Debug info:', data.debug);
+      }
+    } else {
+      alert(`❌ Error: ${data.error}`);
+    }
+  })
+  .catch(error => {
+    console.error('Add to cart error:', error);
+    alert('❌ Failed to add item to cart');
+  });
+  
+  return false;
+}
+
+// Update item totals when quantity changes
+document.addEventListener('DOMContentLoaded', function() {
+  const quantityInputs = document.querySelectorAll('input[name="quantity"]');
+  
+  quantityInputs.forEach(input => {
+    input.addEventListener('change', function() {
+      const form = this.closest('.add-to-cart-form');
+      const price = parseFloat(form.querySelector('.price-input').value);
+      const quantity = parseInt(this.value) || 1;
+      const total = (price * quantity).toFixed(2);
+      
+      form.querySelector('.item-total').textContent = total;
+    });
+  });
+});
+
+// VULNERABILITY A10: SSRF via image loading
+function loadExternalImage(url, elementId) {
+  // This function could be exploited to make requests to internal services
+  fetch(`/proxy/image?url=${encodeURIComponent(url)}`)
+    .then(response => response.blob())
+    .then(blob => {
+      const imageUrl = URL.createObjectURL(blob);
+      document.getElementById(elementId).src = imageUrl;
+    })
+    .catch(error => {
+      console.error('Image loading error:', error);
+    });
+}
+</script>
+
+<style>
+.search-section {
+  margin: 20px 0;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.search-section input[type="text"] {
+  width: 300px;
+  padding: 10px;
+  margin-right: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.food-item {
+  position: relative;
+}
+
+.add-to-cart-form {
+  margin-top: 10px;
+}
+
+.add-to-cart-form input[type="number"] {
+  width: 60px;
+  padding: 5px;
+  margin-right: 10px;
+  text-align: center;
+}
+
+.cart-summary {
+  margin: 30px 0;
+  padding: 20px;
+  background: var(--bg-white);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.cart-summary a {
+  display: inline-block;
+  margin: 0 10px;
+  padding: 10px 20px;
+  background: var(--accent-yellow);
+  color: white;
+  text-decoration: none;
+  border-radius: 5px;
+  transition: background 0.2s;
+}
+
+.cart-summary a:hover {
+  background: var(--primary-red);
+}
+
+.debug-info {
+  margin: 30px 0;
+  padding: 15px;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.debug-info summary {
+  cursor: pointer;
+  font-weight: bold;
+  color: #856404;
+}
+
+.debug-info pre {
+  margin: 10px 0 0 0;
+  padding: 10px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.no-results {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.price {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: var(--primary-red);
+  margin: 10px 0;
+}
+
+.item-total {
+  font-weight: bold;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .search-section input[type="text"] {
+    width: 100%;
+    margin-bottom: 10px;
+    margin-right: 0;
+  }
+  
+  .cart-summary a {
+    display: block;
+    margin: 5px 0;
+  }
+}
+</style>
 
 <%- include('partials/footer') %>

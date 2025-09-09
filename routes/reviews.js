@@ -1,0 +1,127 @@
+// routes/reviews.js - NEW FILE FOR STORED XSS + CSRF VULNERABILITIES
+
+const express = require('express');
+const router = express.Router();
+const { Review, Food, User } = require('../models');
+
+// Submit review with STORED XSS vulnerability
+router.post('/submit', async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const { foodId, rating, title, comment } = req.body;
+    
+    // VULNERABILITY: No CSRF token validation
+    // VULNERABILITY: No input sanitization - allows stored XSS
+    const review = await Review.create({
+      foodId: parseInt(foodId),
+      userId: req.session.user.id,
+      rating: parseInt(rating),
+      title: title, // XSS VULNERABILITY - stored without sanitization
+      comment: comment, // XSS VULNERABILITY - stored without sanitization
+      approved: true // Auto-approve for faster testing
+    });
+
+    // VULNERABILITY: Reflect user input in response
+    res.json({ 
+      success: true, 
+      message: `Review "${title}" submitted successfully!`,
+      reviewId: review.id,
+      // VULNERABILITY: Information disclosure
+      debug: {
+        userId: req.session.user.id,
+        sessionId: req.sessionID,
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (err) {
+    console.error('Review submission error:', err);
+    res.status(500).json({ 
+      error: 'Failed to submit review',
+      details: err.message 
+    });
+  }
+});
+
+// Display reviews with XSS vulnerability (no escaping)
+router.get('/food/:foodId', async (req, res) => {
+  try {
+    const foodId = req.params.foodId;
+    
+    // VULNERABILITY: SQL injection in foodId parameter
+    const reviews = await Review.findAll({
+      where: { foodId: foodId, approved: true },
+      include: [{ model: User, attributes: ['username'] }],
+      order: [['createdAt', 'DESC']]
+    });
+
+    const food = await Food.findByPk(foodId);
+
+    res.render('reviews/food-reviews', { 
+      foodId, 
+      food,
+      reviews, 
+      title: `Reviews for ${food ? food.name : 'Food Item'}`,
+      user: req.session.user
+    });
+  } catch (err) {
+    console.error('Reviews fetch error:', err);
+    res.status(500).render('error', { 
+      error: 'Failed to load reviews',
+      details: err.message,
+      stack: err.stack
+    });
+  }
+});
+
+// Admin review management with CSRF vulnerability
+router.post('/admin/approve/:id', (req, res) => {
+  // VULNERABILITY: No CSRF protection on admin actions
+  if (!req.session.user || req.session.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  const reviewId = req.params.id;
+  
+  Review.findByPk(reviewId)
+    .then(review => {
+      if (!review) {
+        return res.status(404).json({ error: 'Review not found' });
+      }
+      
+      review.approved = true;
+      return review.save();
+    })
+    .then(() => {
+      res.json({ success: true, message: 'Review approved' });
+    })
+    .catch(err => {
+      res.status(500).json({ error: 'Approval failed', details: err.message });
+    });
+});
+
+// Delete review with CSRF vulnerability  
+router.post('/admin/delete/:id', (req, res) => {
+  // VULNERABILITY: No CSRF protection
+  if (!req.session.user || req.session.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  const reviewId = req.params.id;
+  
+  Review.destroy({ where: { id: reviewId } })
+    .then(deleted => {
+      if (deleted) {
+        res.json({ success: true, message: 'Review deleted' });
+      } else {
+        res.status(404).json({ error: 'Review not found' });
+      }
+    })
+    .catch(err => {
+      res.status(500).json({ error: 'Deletion failed', details: err.message });
+    });
+});
+
+module.exports = router;

@@ -1,40 +1,70 @@
 const { Sequelize, DataTypes } = require('sequelize');
-const sequelize = require('../config/db'); // make sure this exports a Sequelize instance
+const { sequelize } = require('../config/db'); // Import sequelize instance
 
-// Import models
-const UserModel = require('./User');
-const OrderModel = require('./Order');
-const ComplaintModel = require('./Complaint');
-const VulnerabilityModel = require('./Vulnerability');
-const CartItemModel = require('./CartItem');
+// Import all model files
+const User = require('./User');
+const Order = require('./Order');
+const Complaint = require('./Complaint');
+const Vulnerability = require('./Vulnerability');
+const CartItem = require('./CartItem');
+const Food = require('./Food');
+const Review = require('./Review');
 
-// Initialize models
-const User = UserModel(sequelize, DataTypes);
-const Order = OrderModel(sequelize, DataTypes);
-const Complaint = ComplaintModel(sequelize, DataTypes);
-const Vulnerability = VulnerabilityModel(sequelize, DataTypes);
-const CartItem = CartItemModel(sequelize, DataTypes);
+// Initialize all models
+User.initModel(sequelize);
+Order.initModel(sequelize);
+Complaint.initModel(sequelize);
+Vulnerability.initModel(sequelize);
+Food.initModel(sequelize);
+Review.initModel(sequelize);
 
-// Setup relationships
-User.hasMany(Order, { foreignKey: 'userId' });
-Order.belongsTo(User, { foreignKey: 'userId' });
+// For CartItem, it uses the older export pattern
+const CartItemModel = CartItem(sequelize, DataTypes);
 
-User.hasMany(Complaint, { foreignKey: 'userId' });
-Complaint.belongsTo(User, { foreignKey: 'userId' });
+// Set up all associations after models are initialized
+if (User.associate) {
+  User.associate({ 
+    Order, 
+    Complaint, 
+    CartItem: CartItemModel, 
+    Review 
+  });
+}
 
-User.hasMany(CartItem, { foreignKey: 'userId' });
-CartItem.belongsTo(User, { foreignKey: 'userId' });
+if (Order.associate) {
+  Order.associate({ User });
+}
 
-// (Optional) Vulnerabilities can be assigned to staff/admin users
-Vulnerability.belongsTo(User, { foreignKey: 'assignedTo', as: 'assignedUser' });
-User.hasMany(Vulnerability, { foreignKey: 'assignedTo', as: 'assignedVulnerabilities' });
+if (Complaint.associate) {
+  Complaint.associate({ User });
+}
 
+if (Review.associate) {
+  Review.associate({ User, Food });
+}
+
+if (Food.associate) {
+  Food.associate({ Review });
+}
+
+if (Vulnerability.associate) {
+  Vulnerability.associate({ User });
+}
+
+// CartItem associations (older pattern)
+if (CartItemModel.associate) {
+  CartItemModel.associate({ User });
+}
+
+// Export all models
 module.exports = {
   sequelize,
   Sequelize,
   User,
   Order,
   Complaint,
-  CartItem,
-  Vulnerability
+  CartItem: CartItemModel,
+  Vulnerability,
+  Food,
+  Review
 };
