@@ -21,14 +21,19 @@ router.post('/add', async (req, res) => {
   res.redirect('/cart');
 });
 
-// Show cart
+// Show cart - FIXED: Added title and proper user passing
 router.get('/', async (req, res) => {
   if (!req.user) return res.redirect('/auth/login');
 
   const cartItems = await CartItem.findAll({ where: { userId: req.user.id } });
   const total = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
-  res.render('cart', { user: req.user, cartItems, total });
+  res.render('cart', { 
+    title: 'My Cart - WeEat',  // FIXED: Added title
+    user: req.user,            // Pass user for header
+    cartItems, 
+    total 
+  });
 });
 
 // Remove item

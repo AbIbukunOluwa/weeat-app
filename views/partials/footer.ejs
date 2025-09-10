@@ -1,7 +1,181 @@
-    </main>
-    <footer>
-      © <%= new Date().getFullYear() %> WeEat Inc.
+</main>
+    <footer class="enhanced-footer">
+      <div class="footer-content">
+        <div class="footer-section">
+          <h3>🍔 WeEat</h3>
+          <p>From Winnipeg to the World - Serving quality fast food since 2019</p>
+          <div class="social-icons">
+            <a href="#" aria-label="Facebook">📘</a>
+            <a href="#" aria-label="Twitter">🐦</a>
+            <a href="#" aria-label="Instagram">📷</a>
+            <a href="#" aria-label="LinkedIn">💼</a>
+          </div>
+        </div>
+        
+        <div class="footer-section">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="/about">About Us</a></li>
+            <li><a href="/contact">Contact</a></li>
+            <li><a href="/careers">Careers</a></li>
+            <li><a href="/franchise">Franchise</a></li>
+          </ul>
+        </div>
+        
+        <div class="footer-section">
+          <h4>Support</h4>
+          <ul>
+            <li><a href="/complaints">Submit Feedback</a></li>
+            <li><a href="/vulns">Bug Tracker</a></li>
+            <li><a href="/help">Help Center</a></li>
+            <li><a href="/faq">FAQ</a></li>
+          </ul>
+        </div>
+        
+        <div class="footer-section">
+          <h4>Contact Info</h4>
+          <p>📍 123 Portage Avenue, Winnipeg, MB</p>
+          <p>📞 +1 (204) 555-WEAT</p>
+          <p>✉️ hello@weeat.com</p>
+          <p>🕐 Mon-Sun: 8AM - 11PM</p>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        <p>&copy; <%= new Date().getFullYear() %> WeEat Inc. All rights reserved.</p>
+        <div class="footer-links">
+          <a href="/privacy">Privacy Policy</a>
+          <span>|</span>
+          <a href="/terms">Terms of Service</a>
+        </div>
+      </div>
     </footer>
   </div>
+
+<style>
+.enhanced-footer {
+  background: var(--text-gray);
+  color: white;
+  margin-top: auto;
+  padding: 0;
+}
+
+.footer-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.5fr;
+  gap: 40px;
+}
+
+.footer-section h3 {
+  color: var(--accent-yellow);
+  margin-bottom: 15px;
+  font-size: 1.5em;
+}
+
+.footer-section h4 {
+  color: var(--accent-yellow);
+  margin-bottom: 15px;
+  font-size: 1.1em;
+}
+
+.footer-section p {
+  line-height: 1.6;
+  color: #ccc;
+  margin-bottom: 10px;
+}
+
+.footer-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer-section ul li {
+  margin-bottom: 10px;
+}
+
+.footer-section ul li a {
+  color: #ccc;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.footer-section ul li a:hover {
+  color: var(--accent-yellow);
+}
+
+.social-icons {
+  margin-top: 15px;
+  display: flex;
+  gap: 15px;
+}
+
+.social-icons a {
+  font-size: 1.5em;
+  text-decoration: none;
+  transition: transform 0.3s;
+}
+
+.social-icons a:hover {
+  transform: translateY(-3px);
+}
+
+.footer-bottom {
+  background: rgba(0,0,0,0.2);
+  padding: 20px;
+  text-align: center;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.footer-bottom p {
+  margin: 0 0 10px 0;
+  color: #ccc;
+}
+
+.footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  align-items: center;
+}
+
+.footer-links a {
+  color: #ccc;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.footer-links a:hover {
+  color: var(--accent-yellow);
+}
+
+.footer-links span {
+  color: #666;
+}
+
+@media (max-width: 768px) {
+  .footer-content {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  
+  .social-icons {
+    justify-content: center;
+  }
+  
+  .footer-links {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .footer-links span {
+    display: none;
+  }
+}
+</style>
+
 </body>
 </html>

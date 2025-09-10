@@ -23,7 +23,11 @@ router.post('/create', async (req, res) => {
 
 router.get('/', async (req, res) => {
   const orders = await Order.findAll({ where: { userId: req.session.user.id } });
-  res.render('orders/view', { orders });
+  res.render('orders/view', { 
+    title: 'My Orders - WeEat',  // FIXED: Added title
+    user: req.session.user,      // Pass user for header
+    orders 
+  });
 });
 
 module.exports = router;

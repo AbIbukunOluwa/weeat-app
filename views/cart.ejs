@@ -1,49 +1,433 @@
-<%- include('partials/header', { user: user }) %>
+<%- include('partials/header', { user: user, title: title }) %>
 
-<h2>Your Cart</h2>
+<div class="cart-container">
+  <div class="cart-header">
+    <h1>🛒 Shopping Cart</h1>
+    <a href="/menu" class="continue-shopping">← Continue Shopping</a>
+  </div>
 
-<% if (cartItems.length === 0) { %>
-  <p>Your cart is empty!</p>
-<% } else { %>
-  <table>
-    <thead>
-      <tr>
-        <th>Food</th>
-        <th>Price</th>
-        <th>Quantity</th>
-        <th>Subtotal</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% cartItems.forEach(item => { %>
-        <tr>
-          <td><%= item.foodName %></td>
-          <td>$<%= item.price.toFixed(2) %></td>
-          <td>
-            <form method="POST" action="/cart/update">
-              <input type="hidden" name="id" value="<%= item.id %>">
-              <input type="number" name="quantity" value="<%= item.quantity %>" min="1">
-              <button type="submit">Update</button>
-            </form>
-          </td>
-          <td>$<%= (item.price * item.quantity).toFixed(2) %></td>
-          <td>
-            <form method="POST" action="/cart/remove">
-              <input type="hidden" name="id" value="<%= item.id %>">
-              <button type="submit">Remove</button>
-            </form>
-          </td>
-        </tr>
-      <% }) %>
-    </tbody>
-  </table>
+  <% if (cartItems.length === 0) { %>
+    <div class="empty-cart">
+      <div class="empty-cart-icon">🛒</div>
+      <h2>Your cart is empty</h2>
+      <p>Looks like you haven't added anything to your cart yet.</p>
+      <a href="/menu" class="btn-primary">Browse Menu</a>
+    </div>
+  <% } else { %>
+    <div class="cart-content">
+      <div class="cart-items">
+        <div class="cart-table">
+          <div class="cart-header-row">
+            <div class="col-item">Item</div>
+            <div class="col-price">Price</div>
+            <div class="col-quantity">Quantity</div>
+            <div class="col-subtotal">Subtotal</div>
+            <div class="col-action">Action</div>
+          </div>
+          
+          <% cartItems.forEach(item => { %>
+            <div class="cart-item-row">
+              <div class="col-item">
+                <div class="item-name"><%= item.foodName %></div>
+              </div>
+              <div class="col-price">
+                $<%= item.price.toFixed(2) %>
+              </div>
+              <div class="col-quantity">
+                <form method="POST" action="/cart/update" class="quantity-form">
+                  <input type="hidden" name="id" value="<%= item.id %>">
+                  <div class="quantity-wrapper">
+                    <button type="button" onclick="decreaseQty(this)" class="qty-btn">−</button>
+                    <input type="number" name="quantity" value="<%= item.quantity %>" min="1" max="99" class="qty-input">
+                    <button type="button" onclick="increaseQty(this)" class="qty-btn">+</button>
+                  </div>
+                  <button type="submit" class="update-btn">Update</button>
+                </form>
+              </div>
+              <div class="col-subtotal">
+                $<%= (item.price * item.quantity).toFixed(2) %>
+              </div>
+              <div class="col-action">
+                <form method="POST" action="/cart/remove" class="remove-form">
+                  <input type="hidden" name="id" value="<%= item.id %>">
+                  <button type="submit" class="remove-btn" title="Remove item">🗑️</button>
+                </form>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+      </div>
 
-  <h3>Total: $<%= total.toFixed(2) %></h3>
+      <div class="cart-summary">
+        <h2>Order Summary</h2>
+        <div class="summary-row">
+          <span>Subtotal:</span>
+          <span>$<%= total.toFixed(2) %></span>
+        </div>
+        <div class="summary-row">
+          <span>Delivery:</span>
+          <span>$4.99</span>
+        </div>
+        <div class="summary-row">
+          <span>Tax (13%):</span>
+          <span>$<%= (total * 0.13).toFixed(2) %></span>
+        </div>
+        <div class="summary-divider"></div>
+        <div class="summary-row total">
+          <span>Total:</span>
+          <span>$<%= (total + 4.99 + (total * 0.13)).toFixed(2) %></span>
+        </div>
+        
+        <form method="POST" action="/orders/create" class="checkout-form">
+          <button type="submit" class="btn-checkout">
+            Proceed to Checkout
+          </button>
+        </form>
+        
+        <div class="payment-methods">
+          <p>We accept:</p>
+          <div class="payment-icons">
+            💳 💰 📱
+          </div>
+        </div>
+      </div>
+    </div>
+  <% } %>
+</div>
 
-  <form method="POST" action="/orders/create">
-    <button type="submit">Place Order</button>
-  </form>
-<% } %>
+<script>
+function increaseQty(btn) {
+  const input = btn.parentElement.querySelector('.qty-input');
+  const newValue = Math.min(99, parseInt(input.value) + 1);
+  input.value = newValue;
+}
+
+function decreaseQty(btn) {
+  const input = btn.parentElement.querySelector('.qty-input');
+  const newValue = Math.max(1, parseInt(input.value) - 1);
+  input.value = newValue;
+}
+</script>
+
+<style>
+.cart-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+
+.cart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.cart-header h1 {
+  color: var(--primary-red);
+  font-size: 2em;
+  margin: 0;
+}
+
+.continue-shopping {
+  color: var(--accent-yellow);
+  text-decoration: none;
+  font-weight: bold;
+  transition: color 0.3s;
+}
+
+.continue-shopping:hover {
+  color: var(--primary-red);
+}
+
+.empty-cart {
+  text-align: center;
+  padding: 80px 20px;
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.empty-cart-icon {
+  font-size: 5em;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.empty-cart h2 {
+  color: var(--primary-red);
+  margin-bottom: 10px;
+}
+
+.empty-cart p {
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.btn-primary {
+  display: inline-block;
+  padding: 12px 30px;
+  background: var(--primary-red);
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: bold;
+  transition: all 0.3s;
+}
+
+.btn-primary:hover {
+  background: #b91c1c;
+  transform: translateY(-2px);
+}
+
+.cart-content {
+  display: grid;
+  grid-template-columns: 1fr 350px;
+  gap: 30px;
+}
+
+.cart-items {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.cart-table {
+  width: 100%;
+}
+
+.cart-header-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.5fr 1fr 0.5fr;
+  gap: 15px;
+  padding: 15px 0;
+  border-bottom: 2px solid #e0e0e0;
+  font-weight: bold;
+  color: var(--primary-red);
+}
+
+.cart-item-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.5fr 1fr 0.5fr;
+  gap: 15px;
+  padding: 20px 0;
+  border-bottom: 1px solid #f0f0f0;
+  align-items: center;
+}
+
+.item-name {
+  font-weight: 600;
+  color: #333;
+}
+
+.col-price {
+  color: var(--accent-yellow);
+  font-weight: bold;
+}
+
+.quantity-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quantity-wrapper {
+  display: flex;
+  align-items: center;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.qty-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: white;
+  color: var(--primary-red);
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qty-btn:hover {
+  background: var(--accent-yellow);
+  color: white;
+}
+
+.qty-input {
+  width: 40px;
+  height: 28px;
+  border: none;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* Remove spinner arrows */
+.qty-input::-webkit-inner-spin-button,
+.qty-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.update-btn {
+  padding: 5px 12px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.update-btn:hover {
+  background: #5a6268;
+}
+
+.col-subtotal {
+  font-weight: bold;
+  color: #333;
+}
+
+.remove-btn {
+  background: none;
+  border: none;
+  font-size: 1.2em;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: all 0.2s;
+}
+
+.remove-btn:hover {
+  opacity: 1;
+  transform: scale(1.2);
+}
+
+.cart-summary {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.cart-summary h2 {
+  color: var(--primary-red);
+  margin-bottom: 20px;
+  font-size: 1.3em;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  color: #666;
+}
+
+.summary-row.total {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: var(--primary-red);
+  margin-top: 15px;
+}
+
+.summary-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 15px 0;
+}
+
+.btn-checkout {
+  width: 100%;
+  padding: 15px;
+  background: var(--primary-red);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 20px;
+}
+
+.btn-checkout:hover {
+  background: #b91c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(214,40,40,0.3);
+}
+
+.payment-methods {
+  text-align: center;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.payment-methods p {
+  color: #666;
+  font-size: 0.9em;
+  margin-bottom: 10px;
+}
+
+.payment-icons {
+  font-size: 1.5em;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+@media (max-width: 992px) {
+  .cart-content {
+    grid-template-columns: 1fr;
+  }
+  
+  .cart-summary {
+    position: static;
+  }
+}
+
+@media (max-width: 768px) {
+  .cart-header-row,
+  .cart-item-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    text-align: center;
+  }
+  
+  .cart-header-row {
+    display: none;
+  }
+  
+  .cart-item-row > div::before {
+    content: attr(data-label);
+    font-weight: bold;
+    color: var(--primary-red);
+    display: block;
+    margin-bottom: 5px;
+  }
+  
+  .col-item::before { content: "Item: "; }
+  .col-price::before { content: "Price: "; }
+  .col-quantity::before { content: "Quantity: "; }
+  .col-subtotal::before { content: "Subtotal: "; }
+  
+  .quantity-form {
+    justify-content: center;
+  }
+}
+</style>
 
 <%- include('partials/footer') %>

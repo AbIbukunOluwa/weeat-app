@@ -18,6 +18,7 @@ const profileRoutes = require('./routes/profile');
 const cartRoutes = require('./routes/cart');
 const menuRoutes = require('./routes/menu');
 const apiRoutes = require('./routes/api');
+const aboutRoutes = require('./routes/about');
 const uploadRoutes = require('./routes/upload');
 
 // Admin and Staff routes
@@ -91,20 +92,19 @@ app.use(session({
   saveUninitialized: false,
   cookie: { 
     httpOnly: true, 
-    maxAge: 1000 * 60 * 60 * 8,
-    // VULNERABILITY A07: Conditional secure flag
-    secure: process.env.NODE_ENV === 'production' && !req?.headers['x-insecure-cookies']
+    maxAge: 1000 * 60 * 60 * 8,  // 8 hours
+    secure: false  // Set to true in production with HTTPS
   },
-  // VULNERABILITY A07: Session name can be changed via header
-  name: (req) => req?.headers['x-session-name'] || 'connect.sid'
+  name: 'connect.sid'
 }));
 
 // Expose user to views
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
+  res.locals.isAuthenticated = !!req.session.user;
   req.user = req.session.user || null;
   
-  // VULNERABILITY: Expose additional user data with specific header
+  // Debug info (optional)
   if (req.headers['x-user-debug'] === 'true' && req.session.user) {
     res.locals.userDebug = {
       sessionId: req.sessionID,
@@ -160,9 +160,53 @@ app.get('/', async (req, res) => {
   }
 });
 
+// Legal pages
+app.get('/privacy', (req, res) => {
+  res.render('privacy', {
+    title: 'Privacy Policy - WeEat',
+    user: req.session.user || null
+  });
+});
+
+app.get('/terms', (req, res) => {
+  res.render('terms', {
+    title: 'Terms of Service - WeEat',
+    user: req.session.user || null
+  });
+});
+
+// Placeholder routes for footer links
+app.get('/careers', (req, res) => {
+  res.render('error', {
+    error: 'Careers page coming soon!',
+    title: 'Careers - WeEat',
+    user: req.session.user || null,
+    details: 'Check back later for exciting opportunities to join the WeEat team.'
+  });
+});
+
+app.get('/franchise', (req, res) => {
+  res.render('error', {
+    error: 'Franchise opportunities coming soon!',
+    title: 'Franchise - WeEat',
+    user: req.session.user || null,
+    details: 'Interested in opening a WeEat location? Contact us at franchise@weeat.com'
+  });
+});
+
+app.get('/help', (req, res) => {
+  res.redirect('/contact');
+});
+
+app.get('/faq', (req, res) => {
+  res.redirect('/contact');
+});
+
 // Public routes
 app.use('/auth', authRoutes);
 app.use('/contact', contactRoutes);
+app.use('/about', aboutRoutes);
+app.use('/profile', profileRoutes);
 
 // Protected routes
 app.use('/orders', ordersRoutes);

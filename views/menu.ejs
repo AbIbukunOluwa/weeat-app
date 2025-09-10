@@ -68,12 +68,6 @@
                 </button>
               </form>
               
-              <!-- Quick price modification for testing -->
-              <div class="price-controls" style="margin-top: 10px; font-size: 12px;">
-                <button onclick="modifyPrice(this, 0.01)" class="price-mod-btn">$0.01</button>
-                <button onclick="modifyPrice(this, 0.50)" class="price-mod-btn">Half Price</button>
-                <button onclick="modifyPrice(this, -5.00)" class="price-mod-btn">-$5</button>
-              </div>
             </div>
           <% } else { %>
             <p class="login-prompt">
@@ -129,31 +123,6 @@
 
 <script>
 // VULNERABILITY A08: Client-side price manipulation
-function modifyPrice(button, newPrice) {
-  const foodItem = button.closest('.food-item');
-  const priceInput = foodItem.querySelector('.manipulatable-price');
-  const priceDisplay = foodItem.querySelector('.price-value');
-  const itemTotal = foodItem.querySelector('.item-total');
-  const quantity = parseInt(foodItem.querySelector('.quantity-input').value) || 1;
-  
-  if (newPrice === 0.50) {
-    // Half price
-    newPrice = parseFloat(priceInput.value) * 0.5;
-  }
-  
-  const currentPrice = parseFloat(priceInput.value);
-  const finalPrice = Math.max(0.01, currentPrice + newPrice);
-  
-  priceInput.value = finalPrice.toFixed(2);
-  priceDisplay.textContent = finalPrice.toFixed(2);
-  itemTotal.textContent = (finalPrice * quantity).toFixed(2);
-  
-  console.log('Price modified:', {
-    original: currentPrice,
-    new: finalPrice,
-    difference: newPrice
-  });
-}
 
 function increaseQuantity(button) {
   const input = button.parentNode.querySelector('.quantity-input');
@@ -379,32 +348,41 @@ function handleImageError(img, foodId) {
 .quantity-controls {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 5px;  /* Reduced gap */
   margin: 15px 0;
+  justify-content: center;  /* Center the controls */
 }
 
 .quantity-controls button {
-  width: 30px;
-  height: 30px;
+  width: 20px;  /* Reduced from 30px */
+  height: 30px;  /* Reduced from 30px */
   border: 1px solid #ddd;
-  background: #f8f9fa;
+  background: white;  /* Changed from gray background */
   border-radius: 50%;
   cursor: pointer;
   font-weight: bold;
+  font-size: 16px;  /* Fixed font size */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  color: var(--primary-red);  /* Red color for buttons */
 }
 
 .quantity-controls button:hover {
   background: var(--accent-yellow);
   color: white;
   border-color: var(--accent-yellow);
+  transform: scale(1.1);  /* Slight scale on hover */
 }
 
 .quantity-input {
-  width: 60px;
+  width: 40px;  /* Reduced from 60px */
   text-align: center;
-  padding: 8px;
+  padding: 6px;  /* Reduced padding */
   border: 1px solid #ddd;
   border-radius: 4px;
+  font-size: 14px;  /* Consistent font size */
 }
 
 .add-to-cart-btn {
@@ -421,28 +399,6 @@ function handleImageError(img, foodId) {
 
 .add-to-cart-btn:hover {
   background: var(--primary-red);
-}
-
-.price-controls {
-  display: flex;
-  gap: 5px;
-  justify-content: center;
-  margin-top: 10px;
-}
-
-.price-mod-btn {
-  padding: 4px 8px;
-  font-size: 10px;
-  background: #ffc107;
-  color: #000;
-  border: none;
-  border-radius: 3px;
-  cursor: pointer;
-  opacity: 0.7;
-}
-
-.price-mod-btn:hover {
-  opacity: 1;
 }
 
 .details-link {

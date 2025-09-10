@@ -1,35 +1,866 @@
-<h2>Welcome, <%= user.name %> 👋</h2>
-<p>Your dashboard:</p>
+<%- include('partials/header', { title: 'My Profile', user: user }) %>
 
-<div class="menu-gallery">
-  <h3>Our Menu</h3>
-  <div class="menu-items">
-    <div class="item">
-      <img src="https://picsum.photos/200?food=1" alt="Pizza">
-      <p>Pizza - $12</p>
+<div class="profile-container">
+  <div class="profile-header">
+    <h1>👤 My Profile</h1>
+  </div>
+
+  <div class="profile-grid">
+    <!-- User Info Card -->
+    <div class="profile-card user-info">
+      <div class="card-header">
+        <h2>Account Information</h2>
+      </div>
+      <div class="card-body">
+        <div class="avatar-section">
+          <div class="avatar-wrapper">
+            <% if (user.avatar) { %>
+              <img src="<%= user.avatar %>" alt="Profile Picture" class="avatar-image" id="currentAvatar">
+            <% } else { %>
+              <div class="avatar-placeholder">
+                <span><%= user.username.charAt(0).toUpperCase() %></span>
+              </div>
+            <% } %>
+            <div class="avatar-overlay">
+              <button onclick="document.getElementById('avatarInput').click()" class="change-avatar-btn">
+                📷 Change Photo
+              </button>
+            </div>
+          </div>
+          
+          <!-- File Upload Form (VULNERABILITY: Multiple upload bypass vectors) -->
+          <form id="avatarUploadForm" enctype="multipart/form-data" style="display: none;">
+            <input type="file" id="avatarInput" name="avatar" accept="image/*" onchange="uploadAvatar()">
+          </form>
+          
+          <% if (user.avatar) { %>
+            <button onclick="deleteAvatar()" class="delete-avatar-btn">🗑️ Remove Photo</button>
+          <% } %>
+        </div>
+
+        <div class="user-details">
+          <div class="detail-row">
+            <span class="label">Username:</span>
+            <span class="value"><%= user.username %></span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Email:</span>
+            <span class="value"><%= user.email %></span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Full Name:</span>
+            <span class="value"><%= user.name || user.username %></span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Role:</span>
+            <span class="value badge <%= user.role %>"><%= user.role.toUpperCase() %></span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Member Since:</span>
+            <span class="value"><%= new Date().toLocaleDateString() %></span>
+          </div>
+        </div>
+
+        <button onclick="toggleEditProfile()" class="btn-edit">✏️ Edit Profile</button>
+      </div>
     </div>
-    <div class="item">
-      <img src="https://picsum.photos/200?food=2" alt="Burger">
-      <p>Burger - $8</p>
+
+    <!-- Edit Profile Form (Initially Hidden) -->
+    <div class="profile-card edit-form" id="editProfileForm" style="display: none;">
+      <div class="card-header">
+        <h2>Edit Profile</h2>
+      </div>
+      <div class="card-body">
+        <form id="profileUpdateForm">
+          <div class="form-group">
+            <label for="name">Full Name:</label>
+            <input type="text" id="name" name="name" value="<%= user.name || '' %>" required>
+          </div>
+          <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" name="email" value="<%= user.email %>" required>
+          </div>
+          <div class="form-group">
+            <label for="bio">Bio:</label>
+            <textarea id="bio" name="bio" rows="3" placeholder="Tell us about yourself..."><%= user.bio || '' %></textarea>
+          </div>
+          <div class="form-group">
+            <label for="phone">Phone:</label>
+            <input type="tel" id="phone" name="phone" value="<%= user.phone || '' %>" placeholder="+1 (555) 123-4567">
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-save">💾 Save Changes</button>
+            <button type="button" onclick="toggleEditProfile()" class="btn-cancel">Cancel</button>
+          </div>
+        </form>
+      </div>
     </div>
-    <div class="item">
-      <img src="https://picsum.photos/200?food=3" alt="Soda">
-      <p>Soda - $2</p>
+
+    <!-- Recent Orders Card -->
+    <div class="profile-card orders-section">
+      <div class="card-header">
+        <h2>📦 Recent Orders</h2>
+        <a href="/orders" class="view-all-link">View All →</a>
+      </div>
+      <div class="card-body">
+        <% if (orders && orders.length > 0) { %>
+          <div class="orders-list">
+            <% orders.forEach(order => { %>
+              <div class="order-item">
+                <div class="order-header">
+                  <span class="order-id">#<%= order.id %></span>
+                  <span class="order-status <%= order.status %>"><%= order.status %></span>
+                </div>
+                <div class="order-details">
+                  <p class="order-items">
+                    <% const items = JSON.parse(order.items); %>
+                    <%= items.map(i => `${i.name} x${i.qty}`).join(', ') %>
+                  </p>
+                  <p class="order-total">Total: $<%= order.totalAmount.toFixed(2) %></p>
+                  <p class="order-date"><%= new Date(order.createdAt).toLocaleDateString() %></p>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="no-orders">
+            <p>No orders yet</p>
+            <a href="/menu" class="btn-primary">Start Ordering</a>
+          </div>
+        <% } %>
+      </div>
     </div>
+
+    <!-- Quick Actions -->
+	<div class="profile-card quick-actions">
+	  <div class="card-header">
+	    <h2>⚡ Quick Actions</h2>
+	  </div>
+	  <div class="card-body">
+	    <div class="actions-grid">
+	      <a href="/menu" class="action-btn">
+	        <span class="icon">🍔</span>
+	        <span>Browse Menu</span>
+	      </a>
+	      <a href="/cart" class="action-btn">
+	        <span class="icon">🛒</span>
+	        <span>My Cart</span>
+	      </a>
+	      <a href="/complaints" class="action-btn">
+	        <span class="icon">💬</span>
+	        <span>Submit Complaint</span>
+	      </a>
+	      <a href="/contact" class="action-btn">
+	        <span class="icon">📧</span>
+	        <span>Contact Us</span>
+	      </a>
+	    </div>
+	  </div>
+	</div>
+
+    <!-- Security Settings -->
+    <div class="profile-card security-settings">
+      <div class="card-header">
+        <h2>🔒 Security Settings</h2>
+      </div>
+      <div class="card-body">
+        <button onclick="showPasswordChange()" class="security-btn">🔑 Change Password</button>
+        <button onclick="showDeleteAccount()" class="security-btn danger">⚠️ Delete Account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Advanced Upload Section (Hidden by default) -->
+  <% if (user && (user.role === 'admin' || user.role === 'staff')) { %>
+  <div class="advanced-upload" id="advancedUpload">
+    <h3>🔧 Advanced Upload Options</h3>
+    <div class="upload-options">
+      <button onclick="enableBulkUpload()">📁 Bulk Upload</button>
+      <button onclick="enableZipUpload()">🗜️ ZIP Upload</button>
+      <button onclick="enableSVGUpload()">🎨 SVG Upload</button>
+    </div>
+  </div>
+  <% } %>
+</div>
+
+<!-- Password Change Modal -->
+<div id="passwordModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <span class="close" onclick="closePasswordModal()">&times;</span>
+    <h2>Change Password</h2>
+    <form id="passwordChangeForm">
+      <div class="form-group">
+        <label for="currentPassword">Current Password:</label>
+        <input type="password" id="currentPassword" name="currentPassword" required>
+      </div>
+      <div class="form-group">
+        <label for="newPassword">New Password:</label>
+        <input type="password" id="newPassword" name="newPassword" required>
+      </div>
+      <div class="form-group">
+        <label for="confirmPassword">Confirm New Password:</label>
+        <input type="password" id="confirmPassword" name="confirmPassword" required>
+      </div>
+      <button type="submit" class="btn-primary">Update Password</button>
+    </form>
   </div>
 </div>
 
-<hr>
+<script>
+// VULNERABILITY: Client-side file validation can be bypassed
+function uploadAvatar() {
+  const fileInput = document.getElementById('avatarInput');
+  const file = fileInput.files[0];
+  
+  if (!file) return;
+  
+  // VULNERABILITY: Client-side validation only - easily bypassed
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const maxSize = 5 * 1024 * 1024; // 5MB
+  
+  // Weak client-side check
+  if (!allowedTypes.includes(file.type)) {
+    // VULNERABILITY: Can be bypassed by changing MIME type
+    console.log('File type validation:', file.type);
+  }
+  
+  if (file.size > maxSize) {
+    // VULNERABILITY: Can be bypassed with custom headers
+    console.log('File size:', file.size);
+  }
+  
+  const formData = new FormData();
+  formData.append('avatar', file);
+  
+  // VULNERABILITY: No CSRF token
+  fetch('/profile/upload-avatar', {
+    method: 'POST',
+    body: formData,
+    // VULNERABILITY: Custom headers can bypass restrictions
+    headers: {
+      'X-Upload-Source': 'profile-page',
+      // Uncomment to bypass restrictions (for testing):
+      // 'X-Admin-Upload': 'true',
+      // 'X-Staff-Override': 'large-files',
+      // 'X-Keep-Original': 'true'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ Avatar uploaded successfully!');
+      document.getElementById('currentAvatar').src = data.avatar_url;
+      
+      // VULNERABILITY: Log sensitive debug info
+      if (data.debug) {
+        console.log('Upload debug info:', data.debug);
+      }
+    } else {
+      alert('❌ Upload failed: ' + data.error);
+    }
+  })
+  .catch(error => {
+    console.error('Upload error:', error);
+    alert('❌ Failed to upload avatar');
+  });
+}
 
-<h3>Your Orders</h3>
-<ul>
-  <% if (orders && orders.length > 0) { %>
-    <% orders.forEach(o => { %>
-      <li>
-        Order #<%= o.id %>: <%= o.items %> ($<%= o.totalAmount %>) - <%= o.status %>
-      </li>
-    <% }) %>
-  <% } else { %>
-    <li>No orders yet.</li>
-  <% } %>
-</ul>
+function deleteAvatar() {
+  if (!confirm('Are you sure you want to delete your profile picture?')) return;
+  
+  // VULNERABILITY: No CSRF protection
+  fetch('/profile/avatar', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ Avatar deleted successfully');
+      location.reload();
+    } else {
+      alert('❌ Failed to delete avatar');
+    }
+  })
+  .catch(error => {
+    console.error('Delete error:', error);
+  });
+}
+
+function toggleEditProfile() {
+  const editForm = document.getElementById('editProfileForm');
+  editForm.style.display = editForm.style.display === 'none' ? 'block' : 'none';
+}
+
+document.getElementById('profileUpdateForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const formData = new FormData(e.target);
+  const updateData = Object.fromEntries(formData);
+  
+  try {
+    const response = await fetch('/profile/update', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(updateData)
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      alert('✅ Profile updated successfully!');
+      location.reload();
+    } else {
+      alert('❌ Update failed: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Update error:', error);
+    alert('❌ Failed to update profile');
+  }
+});
+
+// Password change functionality
+function showPasswordChange() {
+  document.getElementById('passwordModal').style.display = 'block';
+}
+
+function closePasswordModal() {
+  document.getElementById('passwordModal').style.display = 'none';
+}
+
+document.getElementById('passwordChangeForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const formData = new FormData(e.target);
+  const passwords = Object.fromEntries(formData);
+  
+  if (passwords.newPassword !== passwords.confirmPassword) {
+    alert('❌ New passwords do not match!');
+    return;
+  }
+  
+  // VULNERABILITY: No CSRF protection
+  try {
+    const response = await fetch('/csrf/change-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(passwords)
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      alert('✅ Password changed successfully!');
+      closePasswordModal();
+      e.target.reset();
+    } else {
+      alert('❌ ' + result.error);
+    }
+  } catch (error) {
+    console.error('Password change error:', error);
+    alert('❌ Failed to change password');
+  }
+});
+
+function showDeleteAccount() {
+  if (confirm('⚠️ WARNING: This will permanently delete your account and all associated data. Are you sure?')) {
+    const password = prompt('Please enter your password to confirm:');
+    if (password) {
+      // VULNERABILITY: No CSRF protection
+      fetch('/csrf/delete-account', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          password: password,
+          confirmation: 'DELETE_MY_ACCOUNT'
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          alert('Account deleted. Goodbye!');
+          window.location.href = '/';
+        } else {
+          alert('❌ ' + data.error);
+        }
+      });
+    }
+  }
+}
+
+// Advanced upload features (for testing vulnerabilities)
+function enableBulkUpload() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.multiple = true;
+  input.accept = 'image/*';
+  
+  input.onchange = async (e) => {
+    const files = e.target.files;
+    const formData = new FormData();
+    
+    for (let i = 0; i < files.length; i++) {
+      formData.append('avatars', files[i]);
+    }
+    
+    // VULNERABILITY: Batch upload endpoint
+    const response = await fetch('/profile/upload-batch-avatars', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        // 'X-Batch-Override': 'testing-mode' // Uncomment to bypass restrictions
+      }
+    });
+    
+    const result = await response.json();
+    alert(result.success ? '✅ Batch upload complete!' : '❌ Batch upload failed');
+    console.log('Batch upload results:', result);
+  };
+  
+  input.click();
+}
+
+function enableZipUpload() {
+  alert('ZIP upload feature allows uploading compressed archives.\nVulnerability: Path traversal via malicious ZIP files.');
+  // Implementation would go to /upload/backup/restore endpoint
+}
+
+function enableSVGUpload() {
+  alert('SVG upload allows vector graphics.\nVulnerability: XSS via SVG with embedded JavaScript.');
+  // Implementation would go to /upload/logo/upload endpoint
+}
+</script>
+
+<style>
+.profile-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+
+.profile-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.profile-header h1 {
+  color: var(--primary-red);
+  font-size: 2.5em;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 30px;
+}
+
+.profile-card {
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 20px;
+  background: linear-gradient(135deg, var(--primary-red), var(--accent-yellow));
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 1.3em;
+}
+
+.view-all-link {
+  color: white;
+  text-decoration: none;
+  font-size: 0.9em;
+}
+
+.card-body {
+  padding: 25px;
+}
+
+.avatar-section {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.avatar-image {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid var(--accent-yellow);
+}
+
+.avatar-placeholder {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary-red), var(--accent-yellow));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 3em;
+  font-weight: bold;
+}
+
+.avatar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.7);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.avatar-wrapper:hover .avatar-overlay {
+  opacity: 1;
+}
+
+.change-avatar-btn {
+  padding: 10px 20px;
+  background: var(--accent-yellow);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.delete-avatar-btn {
+  margin-top: 10px;
+  padding: 8px 16px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.user-details {
+  margin: 25px 0;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-row .label {
+  font-weight: 600;
+  color: #666;
+}
+
+.detail-row .value {
+  color: #333;
+}
+
+.badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+.badge.admin {
+  background: #dc3545;
+  color: white;
+}
+
+.badge.staff {
+  background: #28a745;
+  color: white;
+}
+
+.badge.customer {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-edit {
+  width: 100%;
+  padding: 12px;
+  background: var(--accent-yellow);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-edit:hover {
+  background: var(--primary-red);
+}
+
+.edit-form .form-group {
+  margin-bottom: 20px;
+}
+
+.edit-form label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  color: #333;
+}
+
+.edit-form input,
+.edit-form textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-save {
+  flex: 1;
+  padding: 12px;
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-cancel {
+  flex: 1;
+  padding: 12px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.orders-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.order-item {
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  margin-bottom: 15px;
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.order-id {
+  font-weight: bold;
+  color: var(--primary-red);
+}
+
+.order-status {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+.order-status.pending {
+  background: #ffc107;
+  color: #000;
+}
+
+.order-status.preparing {
+  background: #17a2b8;
+  color: white;
+}
+
+.order-status.delivered {
+  background: #28a745;
+  color: white;
+}
+
+.order-items {
+  color: #666;
+  font-size: 0.9em;
+  margin: 5px 0;
+}
+
+.order-total {
+  font-weight: bold;
+  color: var(--accent-yellow);
+}
+
+.order-date {
+  color: #999;
+  font-size: 0.85em;
+}
+
+.no-orders {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);  /* Back to 2 columns */
+  gap: 15px;
+}
+
+@media (max-width: 768px) {
+  .actions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #333;
+  transition: all 0.3s;
+}
+
+.action-btn:hover {
+  background: var(--accent-yellow);
+  color: white;
+  transform: translateY(-2px);
+}
+
+.action-btn .icon {
+  font-size: 2em;
+  margin-bottom: 5px;
+}
+
+.security-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.security-btn:hover {
+  background: var(--accent-yellow);
+  color: white;
+}
+
+.security-btn.danger {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+.security-btn.danger:hover {
+  background: #dc3545;
+  color: white;
+}
+
+.advanced-upload {
+  margin-top: 30px;
+  padding: 20px;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 10px;
+}
+
+.upload-options {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.upload-options button {
+  padding: 10px 20px;
+  background: #ffc107;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.modal {
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  width: 90%;
+  max-width: 500px;
+}
+
+.close {
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--primary-red);
+}
+
+@media (max-width: 768px) {
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .actions-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<%- include('partials/footer') %>

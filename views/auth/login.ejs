@@ -1,12 +1,295 @@
-<%- include('../partials/header') %>
-<h2>Login</h2>
-<% if (error) { %>
-  <p style="color:red;"><%= error %></p>
-<% } %>
-<form method="POST" action="/auth/login">
-  <input type="email" name="email" placeholder="Email" required>
-  <input type="password" name="password" placeholder="Password" required>
-  <input type="submit" value="Login">
-</form>
-<p>Don't have an account? <a href="/auth/register">Register</a></p>
+<%- include('../partials/header', { title: title, user: null }) %>
+
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h1>🔐 Welcome Back!</h1>
+      <p>Login to your WeEat account</p>
+    </div>
+
+    <% if (error) { %>
+      <div class="error-message">
+        <span>⚠️</span> <%= error %>
+      </div>
+    <% } %>
+
+    <form method="POST" action="/auth/login" class="auth-form">
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input 
+          type="email" 
+          id="email"
+          name="email" 
+          placeholder="your@email.com" 
+          required
+          autofocus
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input 
+          type="password" 
+          id="password"
+          name="password" 
+          placeholder="Enter your password" 
+          required
+        >
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">Login</button>
+      </div>
+
+      <div class="form-footer">
+        <p>Don't have an account? <a href="/auth/register">Sign up here</a></p>
+        <p><a href="#" class="forgot-link">Forgot your password?</a></p>
+      </div>
+    </form>
+
+    <!-- Test Accounts Section -->
+    <div class="test-accounts">
+      <h3>🧪 Test Accounts</h3>
+      <div class="test-account-grid">
+        <div class="test-account" onclick="fillCredentials('alice@example.com', 'alice123')">
+          <span class="role-badge customer">Customer</span>
+          <span class="email">alice@example.com</span>
+          <span class="password">alice123</span>
+        </div>
+        <div class="test-account" onclick="fillCredentials('admin@weeat.com', 'admin')">
+          <span class="role-badge admin">Admin</span>
+          <span class="email">admin@weeat.com</span>
+          <span class="password">admin</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function fillCredentials(email, password) {
+  document.getElementById('email').value = email;
+  document.getElementById('password').value = password;
+  // Visual feedback
+  document.getElementById('email').style.backgroundColor = '#fffbeb';
+  document.getElementById('password').style.backgroundColor = '#fffbeb';
+  setTimeout(() => {
+    document.getElementById('email').style.backgroundColor = '';
+    document.getElementById('password').style.backgroundColor = '';
+  }, 1000);
+}
+</script>
+
+<style>
+.auth-container {
+  min-height: calc(100vh - 200px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, rgba(214,40,40,0.05), rgba(247,127,0,0.05));
+}
+
+.auth-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 450px;
+  padding: 40px;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.auth-header h1 {
+  color: var(--primary-red);
+  margin-bottom: 10px;
+  font-size: 2em;
+}
+
+.auth-header p {
+  color: #666;
+  font-size: 1.1em;
+}
+
+.error-message {
+  background: #fee;
+  color: #c00;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-form {
+  margin-bottom: 30px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: all 0.3s;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 0 3px rgba(247,127,0,0.1);
+}
+
+.form-actions {
+  margin-top: 25px;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  background: var(--primary-red);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-primary:hover {
+  background: #b91c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(214,40,40,0.3);
+}
+
+.form-footer {
+  text-align: center;
+  margin-top: 25px;
+  padding-top: 25px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.form-footer p {
+  margin: 8px 0;
+  color: #666;
+}
+
+.form-footer a {
+  color: var(--accent-yellow);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.form-footer a:hover {
+  color: var(--primary-red);
+}
+
+.forgot-link {
+  font-size: 0.9em;
+}
+
+.test-accounts {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 30px;
+}
+
+.test-accounts h3 {
+  color: var(--primary-red);
+  margin-bottom: 15px;
+  font-size: 1.1em;
+  text-align: center;
+}
+
+.test-account-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.test-account {
+  background: white;
+  padding: 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 2px solid transparent;
+}
+
+.test-account:hover {
+  border-color: var(--accent-yellow);
+  transform: translateX(5px);
+}
+
+.role-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75em;
+  font-weight: bold;
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.role-badge.customer {
+  background: #6c757d;
+  color: white;
+}
+
+.role-badge.admin {
+  background: #dc3545;
+  color: white;
+}
+
+.test-account .email {
+  font-size: 0.9em;
+  color: #333;
+  font-weight: 600;
+}
+
+.test-account .password {
+  font-size: 0.85em;
+  color: #999;
+  font-family: monospace;
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 30px 20px;
+  }
+  
+  .auth-header h1 {
+    font-size: 1.5em;
+  }
+  
+  .test-account {
+    grid-template-columns: 1fr;
+    text-align: center;
+    gap: 5px;
+  }
+}
+</style>
+
 <%- include('../partials/footer') %>

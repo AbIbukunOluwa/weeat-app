@@ -89,11 +89,11 @@ const { sequelize, User, Order, Complaint, Vulnerability, Food, Review } = requi
       
       // Ice Cream Variations
       { 
-        name: 'Vanilla Soft Serve', 
+        name: 'Chocolate Soft Serve',  // Changed from 'Vanilla Soft Serve'
         image: 'https://images.unsplash.com/photo-1580915411954-282cb1b0d780?w=500&auto=format&fit=crop&q=60', 
         price: 2.99,
         category: 'desserts',
-        description: 'Creamy vanilla soft serve ice cream',
+        description: 'Creamy chocolate soft serve ice cream',  // Changed from vanilla
         status: 'active'
       },
       { 

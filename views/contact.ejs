@@ -1,24 +1,387 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title><%= title %></title>
-</head>
-<body>
-  <h1>Contact Us</h1>
+<%- include('partials/header', { title: title, user: user }) %>
 
-  <% if (typeof success !== 'undefined' && success) { %>
-    <p style="color: green;">Your message has been sent. Thank you!</p>
-  <% } %>
+<div class="contact-container">
+  <div class="contact-header">
+    <h1>📧 Get In Touch</h1>
+    <p>We'd love to hear from you! Send us a message and we'll respond as soon as possible.</p>
+  </div>
 
-  <form method="POST" action="/contact">
-    <label>Name: <input type="text" name="name" required></label><br>
-    <label>Email: <input type="email" name="email" required></label><br>
-    <label>Message:<br>
-      <textarea name="message" required></textarea>
-    </label><br>
-    <button type="submit">Send</button>
-  </form>
+  <div class="contact-grid">
+    <!-- Contact Form -->
+    <div class="contact-form-section">
+      <div class="form-card">
+        <h2>Send Us a Message</h2>
+        
+        <% if (typeof success !== 'undefined' && success) { %>
+          <div class="success-message">
+            <span>✅</span> Your message has been sent successfully! We'll get back to you soon.
+          </div>
+        <% } %>
 
-  <p><a href="/">Back to Home</a></p>
-</body>
-</html>
+        <form method="POST" action="/contact" class="contact-form">
+          <div class="form-group">
+            <label for="name">Your Name</label>
+            <input 
+              type="text" 
+              id="name"
+              name="name" 
+              placeholder="John Doe" 
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="email">Email Address</label>
+            <input 
+              type="email" 
+              id="email"
+              name="email" 
+              placeholder="john@example.com" 
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="subject">Subject</label>
+            <select id="subject" name="subject">
+              <option value="general">General Inquiry</option>
+              <option value="order">Order Issue</option>
+              <option value="feedback">Feedback</option>
+              <option value="partnership">Partnership Opportunity</option>
+              <option value="careers">Careers</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="message">Your Message</label>
+            <textarea 
+              id="message"
+              name="message" 
+              rows="6" 
+              placeholder="Tell us what's on your mind..." 
+              required
+            ></textarea>
+          </div>
+
+          <button type="submit" class="btn-submit">Send Message</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Contact Information -->
+    <div class="contact-info-section">
+      <!-- Quick Contact Info -->
+      <div class="info-card">
+        <h3>Quick Contact</h3>
+        <div class="info-item">
+          <span class="info-icon">📍</span>
+          <div>
+            <strong>Headquarters</strong>
+            <p>123 Portage Avenue<br>Winnipeg, MB R3B 2A3<br>Canada</p>
+          </div>
+        </div>
+        
+        <div class="info-item">
+          <span class="info-icon">📞</span>
+          <div>
+            <strong>Phone</strong>
+            <p>+1 (204) 555-WEAT<br>+1 (204) 555-9328</p>
+          </div>
+        </div>
+        
+        <div class="info-item">
+          <span class="info-icon">✉️</span>
+          <div>
+            <strong>Email</strong>
+            <p>hello@weeat.com<br>support@weeat.com</p>
+          </div>
+        </div>
+        
+        <div class="info-item">
+          <span class="info-icon">🕐</span>
+          <div>
+            <strong>Business Hours</strong>
+            <p>Mon-Fri: 8AM - 10PM<br>Sat-Sun: 9AM - 11PM</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Social Media -->
+      <div class="info-card">
+        <h3>Follow Us</h3>
+        <div class="social-links">
+          <a href="#" class="social-link facebook">📘 Facebook</a>
+          <a href="#" class="social-link twitter">🐦 Twitter</a>
+          <a href="#" class="social-link instagram">📷 Instagram</a>
+          <a href="#" class="social-link linkedin">💼 LinkedIn</a>
+        </div>
+      </div>
+
+      <!-- FAQ Section -->
+      <div class="info-card">
+        <h3>Frequently Asked Questions</h3>
+        <div class="faq-item">
+          <strong>What are your delivery hours?</strong>
+          <p>We deliver from 8AM to 10PM on weekdays and 9AM to 11PM on weekends.</p>
+        </div>
+        <div class="faq-item">
+          <strong>How can I track my order?</strong>
+          <p>Login to your account and visit the Orders page to track your delivery in real-time.</p>
+        </div>
+        <div class="faq-item">
+          <strong>Do you offer catering services?</strong>
+          <p>Yes! Contact us for custom catering options for your events.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Map Section -->
+  <div class="map-section">
+    <h2>Find Us</h2>
+    <div class="map-placeholder">
+      <iframe 
+        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2570.5887802981974!2d-97.14244768433457!3d49.89556307939876!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x52ea715b1c3f1e5d%3A0x2f2a1f1e1c3f1e5d!2sPortage%20Avenue%2C%20Winnipeg%2C%20MB%2C%20Canada!5e0!3m2!1sen!2sus!4v1234567890" 
+        width="100%" 
+        height="400" 
+        style="border:0; border-radius: 10px;" 
+        allowfullscreen="" 
+        loading="lazy">
+      </iframe>
+    </div>
+  </div>
+</div>
+
+<style>
+.contact-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.contact-header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+
+.contact-header h1 {
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 15px;
+}
+
+.contact-header p {
+  color: #666;
+  font-size: 1.2em;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-bottom: 60px;
+}
+
+.form-card {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.form-card h2 {
+  color: var(--primary-red);
+  margin-bottom: 25px;
+}
+
+.success-message {
+  background: #d4edda;
+  color: #155724;
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.contact-form .form-group {
+  margin-bottom: 20px;
+}
+
+.contact-form label {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 600;
+}
+
+.contact-form input,
+.contact-form select,
+.contact-form textarea {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: all 0.3s;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.contact-form input:focus,
+.contact-form select:focus,
+.contact-form textarea:focus {
+  outline: none;
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 0 3px rgba(247,127,0,0.1);
+}
+
+.contact-form textarea {
+  resize: vertical;
+}
+
+.btn-submit {
+  width: 100%;
+  padding: 14px;
+  background: var(--primary-red);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-submit:hover {
+  background: #b91c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(214,40,40,0.3);
+}
+
+.contact-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+
+.info-card {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.info-card h3 {
+  color: var(--primary-red);
+  margin-bottom: 20px;
+  font-size: 1.3em;
+}
+
+.info-item {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.info-icon {
+  font-size: 1.5em;
+  flex-shrink: 0;
+}
+
+.info-item strong {
+  color: #333;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.info-item p {
+  color: #666;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.social-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.social-link {
+  padding: 10px;
+  background: #f8f9fa;
+  text-decoration: none;
+  color: #333;
+  border-radius: 8px;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.social-link:hover {
+  background: var(--accent-yellow);
+  color: white;
+  transform: translateY(-2px);
+}
+
+.faq-item {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.faq-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.faq-item strong {
+  color: var(--primary-red);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.faq-item p {
+  color: #666;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.map-section {
+  margin-top: 60px;
+}
+
+.map-section h2 {
+  color: var(--primary-red);
+  text-align: center;
+  margin-bottom: 30px;
+  font-size: 2em;
+}
+
+.map-placeholder {
+  background: #f8f9fa;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+@media (max-width: 768px) {
+  .contact-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .contact-header h1 {
+    font-size: 2em;
+  }
+  
+  .social-links {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
+<%- include('partials/footer') %>

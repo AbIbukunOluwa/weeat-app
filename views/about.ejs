@@ -1,21 +1,647 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <title><%= title %></title>
-  <link rel="stylesheet" href="/public/css/styles.css">
-</head>
-<body>
-  <header>
-    <h1>About WeEat</h1>
-    <nav>
-      <a href="/">Home</a> |
-      <a href="/menu">Menu</a>
-    </nav>
-  </header>
-  <main>
-    <p>WeEat is a modern food chain focused on speed, taste, and value.</p>
-  </main>
-  <footer>© <%= new Date().getFullYear() %> WeEat Inc.</footer>
-</body>
-</html>
+<%- include('partials/header') %>
+
+<div class="about-container">
+  <!-- Hero Section -->
+  <div class="about-hero">
+    <div class="hero-content">
+      <h1 class="hero-title">🍔 The WEEAT Story</h1>
+      <p class="hero-subtitle">From Winnipeg to the World</p>
+    </div>
+    <div class="hero-image">
+      <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800" alt="WeEat Restaurant">
+    </div>
+  </div>
+
+  <!-- Main Story Section -->
+  <div class="story-section">
+    <div class="story-content">
+      <h2>Our Journey Begins in the Heart of Canada</h2>
+      
+      <p class="lead-text">
+        <strong>WEEAT Fast Food</strong> was born in the heart of <strong>Winnipeg, Manitoba</strong>, 
+        with a simple mission: to bring people together through bold flavors and fast, friendly service.
+      </p>
+
+      <p>
+        Founded in 2019 by a group of food lovers who believed that great taste should travel far, 
+        WEEAT quickly grew from a local favorite to a global sensation. What started as a single 
+        location on Portage Avenue has now expanded to over 500 locations across 30 countries.
+      </p>
+
+      <p>
+        Our menu blends classic comfort food with international flair, celebrating the diversity 
+        of taste across cultures. Whether you're grabbing a burger in Tokyo, fries in Lagos, 
+        or a wrap in São Paulo — WEEAT delivers the same quality, speed, and smile.
+      </p>
+
+      <div class="highlight-box">
+        <p>
+          <strong>We're not just a fast food company. We're a movement of flavor, fueled by 
+          community, innovation, and a love for good eats.</strong>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Values Section -->
+  <div class="values-section">
+    <h2>Our Core Values</h2>
+    <div class="values-grid">
+      <div class="value-card">
+        <div class="value-icon">🌍</div>
+        <h3>Global Taste, Local Love</h3>
+        <p>We bring international flavors to your neighborhood, sourcing ingredients locally whenever possible.</p>
+      </div>
+      
+      <div class="value-card">
+        <div class="value-icon">⚡</div>
+        <h3>Speed Without Sacrifice</h3>
+        <p>Fast food doesn't mean cutting corners. Every meal is prepared fresh with care and attention.</p>
+      </div>
+      
+      <div class="value-card">
+        <div class="value-icon">👥</div>
+        <h3>Community First</h3>
+        <p>From supporting local farmers to sponsoring youth sports, we invest in the communities we serve.</p>
+      </div>
+      
+      <div class="value-card">
+        <div class="value-icon">♻️</div>
+        <h3>Sustainable Future</h3>
+        <p>Eco-friendly packaging, renewable energy, and waste reduction are core to our operations.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline Section -->
+  <div class="timeline-section">
+    <h2>Our Journey</h2>
+    <div class="timeline">
+      <div class="timeline-item">
+        <div class="timeline-year">2019</div>
+        <div class="timeline-content">
+          <h3>The Beginning</h3>
+          <p>First WEEAT opens in Winnipeg, serving 100 customers on opening day</p>
+        </div>
+      </div>
+      
+      <div class="timeline-item">
+        <div class="timeline-year">2020</div>
+        <div class="timeline-content">
+          <h3>Prairie Expansion</h3>
+          <p>10 locations across Manitoba and Saskatchewan</p>
+        </div>
+      </div>
+      
+      <div class="timeline-item">
+        <div class="timeline-year">2021</div>
+        <div class="timeline-content">
+          <h3>Coast to Coast</h3>
+          <p>50 locations spanning all Canadian provinces</p>
+        </div>
+      </div>
+      
+      <div class="timeline-item">
+        <div class="timeline-year">2023</div>
+        <div class="timeline-content">
+          <h3>Going Global</h3>
+          <p>International expansion to USA, Mexico, UK, and Japan</p>
+        </div>
+      </div>
+      
+      <div class="timeline-item">
+        <div class="timeline-year">2024</div>
+        <div class="timeline-content">
+          <h3>500+ Strong</h3>
+          <p>Over 500 locations worldwide, serving 1 million customers daily</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Section -->
+  <div class="stats-section">
+    <h2>WEEAT By The Numbers</h2>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number">500+</div>
+        <div class="stat-label">Locations Worldwide</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">1M+</div>
+        <div class="stat-label">Daily Customers</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">30</div>
+        <div class="stat-label">Countries Served</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">10K+</div>
+        <div class="stat-label">Team Members</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Menu Highlights -->
+  <div class="menu-highlights">
+    <h2>Fan Favorites</h2>
+    <p class="section-subtitle">The dishes that started it all</p>
+    <div class="highlights-grid">
+      <div class="highlight-item">
+        <img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400" alt="Winnipeg Burger">
+        <h3>The Winnipeg Original</h3>
+        <p>Our signature burger that started the journey</p>
+      </div>
+      <div class="highlight-item">
+        <img src="https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400" alt="Prairie Fries">
+        <h3>Prairie Fries</h3>
+        <p>Hand-cut Manitoba potato fries with sea salt</p>
+      </div>
+      <div class="highlight-item">
+        <img src="https://plus.unsplash.com/premium_photo-1694141252774-c937d97641da?w=400" alt="Global Bowl">
+        <h3>Global Fusion Bowl</h3>
+        <p>A celebration of international flavors</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Team Section -->
+  <div class="team-section">
+    <h2>Meet Our Founders</h2>
+    <div class="founders-grid">
+      <div class="founder-card">
+        <div class="founder-avatar">👨‍🍳</div>
+        <h3>Marcus Chen</h3>
+        <p class="founder-title">Chief Culinary Officer</p>
+        <p>Former chef at Michelin-starred restaurants, Marcus brings fine dining expertise to fast food.</p>
+      </div>
+      <div class="founder-card">
+        <div class="founder-avatar">👩‍💼</div>
+        <h3>Sarah Williams</h3>
+        <p class="founder-title">Chief Executive Officer</p>
+        <p>With 15 years in hospitality, Sarah ensures every customer feels like family.</p>
+      </div>
+      <div class="founder-card">
+        <div class="founder-avatar">👨‍💻</div>
+        <h3>Alex Patel</h3>
+        <p class="founder-title">Chief Technology Officer</p>
+        <p>Tech innovator bringing cutting-edge ordering and delivery systems to WEEAT.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Call to Action -->
+  <div class="cta-section">
+    <h2>Join the WEEAT Family</h2>
+    <p>Experience the flavors that are taking the world by storm</p>
+    <div class="cta-buttons">
+      <a href="/menu" class="btn-primary">Order Now</a>
+      <a href="/contact" class="btn-secondary">Get In Touch</a>
+    </div>
+  </div>
+</div>
+
+<style>
+.about-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.about-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  background: linear-gradient(135deg, var(--primary-red), var(--accent-yellow));
+  color: white;
+  overflow: hidden;
+}
+
+.hero-content {
+  padding: 60px;
+}
+
+.hero-title {
+  font-size: 3em;
+  margin-bottom: 15px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.hero-subtitle {
+  font-size: 1.5em;
+  opacity: 0.95;
+}
+
+.hero-image {
+  height: 100%;
+  position: relative;
+}
+
+.hero-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.story-section {
+  padding: 80px 40px;
+  background: white;
+}
+
+.story-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.story-content h2 {
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.lead-text {
+  font-size: 1.3em;
+  line-height: 1.6;
+  color: #333;
+  margin-bottom: 30px;
+}
+
+.story-content p {
+  font-size: 1.1em;
+  line-height: 1.8;
+  color: #555;
+  margin-bottom: 25px;
+}
+
+.highlight-box {
+  background: linear-gradient(135deg, var(--accent-yellow), var(--primary-red));
+  padding: 30px;
+  border-radius: 15px;
+  margin: 40px 0;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.highlight-box p {
+  color: white;
+  font-size: 1.2em;
+  margin: 0;
+  text-align: center;
+}
+
+.values-section {
+  padding: 80px 40px;
+  background: #f8f9fa;
+}
+
+.values-section h2 {
+  text-align: center;
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 50px;
+}
+
+.values-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 30px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.value-card {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  text-align: center;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  transition: transform 0.3s;
+}
+
+.value-card:hover {
+  transform: translateY(-5px);
+}
+
+.value-icon {
+  font-size: 3em;
+  margin-bottom: 15px;
+}
+
+.value-card h3 {
+  color: var(--primary-red);
+  margin-bottom: 15px;
+}
+
+.value-card p {
+  color: #666;
+  line-height: 1.6;
+}
+
+.timeline-section {
+  padding: 80px 40px;
+  background: white;
+}
+
+.timeline-section h2 {
+  text-align: center;
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 50px;
+}
+
+.timeline {
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent-yellow);
+  transform: translateX(-50%);
+}
+
+.timeline-item {
+  display: flex;
+  margin-bottom: 50px;
+  position: relative;
+}
+
+.timeline-item:nth-child(even) {
+  flex-direction: row-reverse;
+}
+
+.timeline-year {
+  flex: 0 0 100px;
+  text-align: center;
+  font-size: 1.5em;
+  font-weight: bold;
+  color: var(--primary-red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timeline-content {
+  flex: 1;
+  padding: 20px 30px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  margin: 0 30px;
+  position: relative;
+}
+
+.timeline-content h3 {
+  color: var(--primary-red);
+  margin-bottom: 10px;
+}
+
+.timeline-content p {
+  color: #666;
+  margin: 0;
+}
+
+.stats-section {
+  padding: 80px 40px;
+  background: linear-gradient(135deg, var(--primary-red), var(--accent-yellow));
+  color: white;
+}
+
+.stats-section h2 {
+  text-align: center;
+  font-size: 2.5em;
+  margin-bottom: 50px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 30px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.stat-card {
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 3em;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.stat-label {
+  font-size: 1.1em;
+  opacity: 0.95;
+}
+
+.menu-highlights {
+  padding: 80px 40px;
+  background: white;
+}
+
+.menu-highlights h2 {
+  text-align: center;
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 15px;
+}
+
+.section-subtitle {
+  text-align: center;
+  color: #666;
+  font-size: 1.2em;
+  margin-bottom: 50px;
+}
+
+.highlights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.highlight-item {
+  text-align: center;
+}
+
+.highlight-item img {
+  width: 100%;
+  height: 250px;
+  object-fit: cover;
+  border-radius: 15px;
+  margin-bottom: 15px;
+}
+
+.highlight-item h3 {
+  color: var(--primary-red);
+  margin-bottom: 10px;
+}
+
+.highlight-item p {
+  color: #666;
+}
+
+.team-section {
+  padding: 80px 40px;
+  background: #f8f9fa;
+}
+
+.team-section h2 {
+  text-align: center;
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 50px;
+}
+
+.founders-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.founder-card {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  text-align: center;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.founder-avatar {
+  font-size: 4em;
+  margin-bottom: 20px;
+}
+
+.founder-card h3 {
+  color: var(--primary-red);
+  margin-bottom: 5px;
+}
+
+.founder-title {
+  color: var(--accent-yellow);
+  font-weight: bold;
+  margin-bottom: 15px;
+}
+
+.founder-card p {
+  color: #666;
+  line-height: 1.6;
+}
+
+.cta-section {
+  padding: 80px 40px;
+  background: white;
+  text-align: center;
+}
+
+.cta-section h2 {
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 15px;
+}
+
+.cta-section p {
+  color: #666;
+  font-size: 1.2em;
+  margin-bottom: 40px;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 15px 40px;
+  font-size: 1.1em;
+  font-weight: bold;
+  text-decoration: none;
+  border-radius: 50px;
+  transition: all 0.3s;
+}
+
+.btn-primary {
+  background: var(--primary-red);
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #b91c1c;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--primary-red);
+  border: 2px solid var(--primary-red);
+}
+
+.btn-secondary:hover {
+  background: var(--primary-red);
+  color: white;
+}
+
+@media (max-width: 768px) {
+  .about-hero {
+    grid-template-columns: 1fr;
+  }
+  
+  .hero-content {
+    padding: 40px 20px;
+  }
+  
+  .hero-title {
+    font-size: 2em;
+  }
+  
+  .hero-image {
+    height: 300px;
+  }
+  
+  .story-section,
+  .values-section,
+  .timeline-section,
+  .stats-section,
+  .menu-highlights,
+  .team-section,
+  .cta-section {
+    padding: 60px 20px;
+  }
+  
+  .timeline::before {
+    left: 20px;
+  }
+  
+  .timeline-item,
+  .timeline-item:nth-child(even) {
+    flex-direction: column;
+  }
+  
+  .timeline-content {
+    margin: 0 0 0 40px;
+  }
+  
+  .cta-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .btn-primary,
+  .btn-secondary {
+    width: 200px;
+  }
+}
+</style>
+
+<%- include('partials/footer') %>

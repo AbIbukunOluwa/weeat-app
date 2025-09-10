@@ -1,15 +1,268 @@
-<%- include('../partials/header') %>
-<h2>Register</h2>
-<% if (error) { %>
-  <p style="color:red;"><%= error %></p>
-<% } %>
-<form method="POST" action="/auth/register">
-  <input type="text" name="name" placeholder="Full Name" required>
-  <input type="text" name="username" placeholder="Username" required>
-  <input type="email" name="email" placeholder="Email" required>
-  <input type="password" name="password" placeholder="Password" required>
-  <input type="password" name="password2" placeholder="Confirm Password" required>
-  <input type="submit" value="Register">
-</form>
-<p>Already have an account? <a href="/auth/login">Login</a></p>
+<%- include('../partials/header', { title: title, user: null }) %>
+
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h1>🍔 Join WeEat!</h1>
+      <p>Create your account and start ordering</p>
+    </div>
+
+    <% if (error) { %>
+      <div class="error-message">
+        <span>⚠️</span> <%= error %>
+      </div>
+    <% } %>
+
+    <form method="POST" action="/auth/register" class="auth-form">
+      <div class="form-group">
+        <label for="name">Full Name</label>
+        <input 
+          type="text" 
+          id="name"
+          name="name" 
+          placeholder="John Doe" 
+          required
+          autofocus
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="username">Username</label>
+        <input 
+          type="text" 
+          id="username"
+          name="username" 
+          placeholder="johndoe" 
+          required
+        >
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input 
+          type="email" 
+          id="email"
+          name="email" 
+          placeholder="john@example.com" 
+          required
+        >
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input 
+            type="password" 
+            id="password"
+            name="password" 
+            placeholder="Create password" 
+            required
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="password2">Confirm Password</label>
+          <input 
+            type="password" 
+            id="password2"
+            name="password2" 
+            placeholder="Confirm password" 
+            required
+          >
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary">Create Account</button>
+      </div>
+
+      <div class="form-footer">
+        <p>Already have an account? <a href="/auth/login">Login here</a></p>
+      </div>
+    </form>
+
+    <div class="benefits">
+      <h3>✨ Why Join WeEat?</h3>
+      <ul>
+        <li>🚀 Fast, reliable delivery</li>
+        <li>🎁 Exclusive member discounts</li>
+        <li>📱 Easy order tracking</li>
+        <li>⭐ Earn rewards with every order</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<style>
+.auth-container {
+  min-height: calc(100vh - 200px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, rgba(214,40,40,0.05), rgba(247,127,0,0.05));
+}
+
+.auth-card {
+  background: white;
+  border-radius: 20px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+  width: 100%;
+  max-width: 500px;
+  padding: 40px;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.auth-header h1 {
+  color: var(--primary-red);
+  margin-bottom: 10px;
+  font-size: 2em;
+}
+
+.auth-header p {
+  color: #666;
+  font-size: 1.1em;
+}
+
+.error-message {
+  background: #fee;
+  color: #c00;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.auth-form {
+  margin-bottom: 30px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #333;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: all 0.3s;
+  box-sizing: border-box;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 0 3px rgba(247,127,0,0.1);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.form-actions {
+  margin-top: 25px;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  background: var(--primary-red);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-primary:hover {
+  background: #b91c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(214,40,40,0.3);
+}
+
+.form-footer {
+  text-align: center;
+  margin-top: 25px;
+  padding-top: 25px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.form-footer p {
+  margin: 8px 0;
+  color: #666;
+}
+
+.form-footer a {
+  color: var(--accent-yellow);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.form-footer a:hover {
+  color: var(--primary-red);
+}
+
+.benefits {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 30px;
+}
+
+.benefits h3 {
+  color: var(--primary-red);
+  margin-bottom: 15px;
+  font-size: 1.1em;
+  text-align: center;
+}
+
+.benefits ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.benefits li {
+  padding: 8px 0;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 30px 20px;
+  }
+  
+  .auth-header h1 {
+    font-size: 1.5em;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
+
 <%- include('../partials/footer') %>

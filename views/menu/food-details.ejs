@@ -1,0 +1,525 @@
+<%- include('../partials/header', { title: food.name + ' - WeEat', user: user }) %>
+
+<div class="food-details-container">
+  <div class="food-hero">
+    <div class="food-image-wrapper">
+      <img src="<%= food.image %>" alt="<%= food.name %>" class="food-main-image">
+      <% if (food.category) { %>
+        <span class="category-badge"><%= food.category %></span>
+      <% } %>
+    </div>
+    
+    <div class="food-info">
+      <h1 class="food-title"><%= food.name %></h1>
+      <p class="food-tagline"><%= food.description %></p>
+      
+      <div class="price-section">
+        <span class="price-label">Price:</span>
+        <span class="price-value">$<%= food.price ? food.price.toFixed(2) : '0.00' %></span>
+      </div>
+
+      <!-- The Story Section -->
+      <div class="food-story">
+        <h2>The Story Behind This Dish</h2>
+        <% 
+          // Food stories based on the item
+          const foodStories = {
+            'Classic Crispy Fries': `Back in 2019, our founders were sitting in a small Winnipeg diner when they had their eureka moment. These weren't just any fries – they were hand-cut Manitoba potatoes, fried to golden perfection with a secret blend of sea salts. Every bite takes you back to that first winter in Winnipeg, where comfort food means everything. We source our potatoes from local Prairie farms, ensuring each fry carries the heartland's authentic taste.`,
+            
+            'Loaded Cheese Fries': `When our head chef Marcus visited Montreal's famous poutine shops, he knew we had to create something special. These loaded fries combine our classic crispy base with a three-cheese blend that melts into creamy perfection. The bacon? Locally sourced from Manitoba farms. It's comfort food that tells a story of Canadian culinary fusion.`,
+            
+			'Chocolate Soft Serve': `Our soft serve recipe comes from a 1950s ice cream parlor in downtown Winnipeg that sadly closed its doors. We rescued their secret chocolate blend, combining rich cocoa with sustainable dairy from local farms. Each swirl is a tribute to simpler times, when families gathered for Sunday treats. The deep chocolate flavor is achieved through a blend of three different cocoas, creating layers of complexity in every bite.`,
+                        
+            'Strawberry Sundae': `Summer in Manitoba means strawberry season. We partnered with Berry Good Farms just outside Winnipeg to bring you sun-ripened strawberries at their peak. This sundae isn't just dessert – it's summer in a cup, no matter what the thermometer says outside.`,
+            
+            'Classic Jollof Rice': `Our Jollof rice has a special story. One of our co-founders grew up in Lagos before moving to Winnipeg. This recipe is her grandmother's, passed down through three generations. We've kept it authentic – the same tomato base, the same aromatic spices, the same love. It's a bridge between continents, served with pride.`,
+            
+            'Jollof Rice Combo': `After the success of our Classic Jollof, customers kept asking for "the works." So we listened. The grilled chicken is marinated for 24 hours in a blend of West African spices, and the plantains are caramelized to perfection. It's a complete meal that celebrates the vibrant flavors of West Africa.`,
+            
+            'Spicy Asian Noodles': `During Winnipeg's Folklorama festival, we fell in love with the city's diverse Asian community. These noodles are our tribute – a fusion of Thai, Chinese, and Vietnamese influences. The heat level? Inspired by those -40°C winter days when you need something to warm your soul.`,
+            
+            'Chicken Pad Thai': `Our Pad Thai journey began when Chef Marcus trained in Bangkok for three months. He learned from street food masters, bringing back not just recipes but philosophy: balance in every bite. Sweet, sour, salty, and umami dance together, topped with Manitoba-grown bean sprouts.`,
+            
+            'Crispy Fried Chicken (3pc)': `This isn't just fried chicken – it's a love letter to Sunday dinners. Our secret? A 48-hour buttermilk brine and eleven herbs and spices (yes, we counted). Each piece is hand-breaded to order, ensuring that perfect crunch that shatters into juicy, tender meat.`,
+            
+            'Nashville Hot Chicken': `After a road trip to Tennessee, we knew we had to bring Nashville heat to the North. But we added our twist – a touch of Manitoba maple syrup in the hot oil blend. It's sweet heat that builds slowly, perfect for those who like to live dangerously.`,
+            
+            'Buffalo Wings (6pc)': `Game day in Winnipeg means wings. Our buffalo sauce recipe comes from a legendary sports bar that closed in the Exchange District. We've kept their tradition alive – Frank's RedHot base, Prairie butter, and a secret ingredient that makes them addictively tangy.`,
+            
+            'BBQ Wings (12pc)': `Our BBQ sauce is a 72-hour labor of love. We smoke Manitoba maple wood chips, blend them with molasses, and let time do its magic. These wings are glazed three times during cooking, creating layers of smoky sweetness that'll have you licking your fingers.`,
+            
+            'Classic Beef Burger': `The WeEat burger that started it all. Premium Manitoba beef, ground fresh daily, formed by hand, never frozen. The "special sauce"? A closely guarded recipe that combines prairie mustard with pickled vegetables from our own garden. Simple. Perfect. Unforgettable.`,
+            
+            'Double Bacon Cheeseburger': `When one patty isn't enough, go double or go home. This beast features two quarter-pound patties, maple-smoked bacon from Steinbach, and aged cheddar from Manitoba dairies. It's the burger that eats like a meal and satisfies like a dream.`,
+            
+            'Grilled Chicken Wrap': `Health-conscious but flavor-obsessed? This wrap was created for Winnipeg's marathon runners who trained through winter. Grilled chicken breast, crisp vegetables, and our house-made herb aioli, all wrapped in a whole wheat tortilla. Fuel for champions.`,
+            
+            'Veggie Delight Wrap': `Our veggie wrap changed the game. We roast our vegetables daily, make our hummus from scratch, and source organic greens from hydroponic farms in Manitoba. It's plant-based eating that doesn't compromise on taste or satisfaction.`,
+            
+            'Margherita Pizza': `Simplicity is the ultimate sophistication. Our Margherita uses San Marzano tomatoes, fresh mozzarella made daily, and basil grown in our own greenhouse. It's a classic that proves when you use the best ingredients, you don't need to complicate things.`,
+            
+            'Pepperoni Deluxe Pizza': `Double pepperoni because life's too short for moderation. We use a blend of spicy and mild pepperoni, creating depth of flavor in every bite. The extra cheese? That's just us showing love. This pizza doesn't just feed you; it hugs you from the inside.`,
+            
+            'Onion Rings': `These aren't just onion rings; they're crispy halos of joy. We use sweet Vidalia onions, beer batter made with local craft brew, and fry them until they're golden perfection. The crunch is so satisfying, it should come with a warning.`,
+            
+            'Mozzarella Sticks': `Cheese pulls for days! Our mozzarella sticks use real Wisconsin mozzarella, hand-breaded with Italian seasoned crumbs. The marinara sauce? Made from scratch every morning. It's the appetizer that often becomes the main event.`,
+            
+            'Caesar Salad': `Our Caesar dressing recipe was gifted to us by a retiring Winnipeg restaurateur. We make it fresh daily – real anchovies, farm-fresh eggs, aged Parmesan. The romaine is crisp, the croutons are house-made. It's the salad that converts salad skeptics.`,
+            
+            'Chocolate Brownie': `This brownie recipe caused a bidding war. Three chocolates, European butter, and a sprinkle of sea salt create a dessert so decadent, we limit customers to two per order. Served warm with vanilla ice cream, it's pure chocolate therapy.`,
+            
+            'Fresh Lemonade': `When life gives you lemons... you make our signature lemonade. We use a blend of Meyer and Eureka lemons, pure cane sugar, and fresh mint from our garden. It's summer in a glass, available 365 days a year.`
+          };
+          
+          // Get the story for this food item, or use a default
+          const story = foodStories[food.name] || `Every dish at WeEat has a story. This ${food.category || 'item'} represents our commitment to quality, flavor, and the joy of good food. Made with carefully selected ingredients and prepared with passion, it's more than just a meal – it's an experience that brings people together.`;
+        %>
+        <p class="story-text"><%= story %></p>
+      </div>
+
+      <!-- Taste Experience -->
+      <div class="taste-experience">
+        <h3>The WeEat Experience</h3>
+        <p>
+          <% 
+            const experiences = {
+              'sides': 'Perfect as a side or satisfying on its own. Pairs beautifully with our burgers and sandwiches.',
+              'desserts': 'The perfect sweet ending to your meal. Best enjoyed fresh and shared with friends.',
+              'mains': 'A complete meal that satisfies your hunger and your taste buds. Our main dishes are crafted to be memorable.',
+              'appetizers': 'Start your meal right with flavors that awaken your palate and set the stage for what\'s to come.',
+              'beverages': 'Carefully selected to complement our menu and refresh your palate.'
+            };
+            const experience = experiences[food.category] || 'Crafted with care and served with pride.';
+          %>
+          <%= experience %>
+        </p>
+      </div>
+
+      <!-- Add to Cart Section -->
+      <div class="order-section">
+        <% if (user) { %>
+          <form class="add-to-cart-form" onsubmit="return addToCart(event, this)">
+            <input type="hidden" name="foodId" value="<%= food.id %>">
+            <input type="hidden" name="foodName" value="<%= food.name %>">
+            <input type="hidden" name="price" value="<%= food.price %>">
+            
+            <div class="quantity-selector">
+              <button type="button" onclick="decreaseQuantity()" class="qty-btn">-</button>
+              <input type="number" name="quantity" id="quantity" value="1" min="1" max="99" class="qty-input">
+              <button type="button" onclick="increaseQuantity()" class="qty-btn">+</button>
+            </div>
+            
+            <button type="submit" class="add-to-cart-btn">
+              Add to Cart - $<span id="totalPrice"><%= food.price ? food.price.toFixed(2) : '0.00' %></span>
+            </button>
+          </form>
+        <% } else { %>
+          <div class="login-prompt">
+            <p><a href="/auth/login">Login</a> to add this item to your cart</p>
+          </div>
+        <% } %>
+      </div>
+
+      <!-- Nutritional Info (Optional) -->
+      <div class="nutrition-info">
+        <h3>Nutritional Information</h3>
+        <p class="nutrition-disclaimer">*Approximate values per serving</p>
+        <div class="nutrition-grid">
+          <div class="nutrition-item">
+            <span class="nutrition-label">Calories</span>
+            <span class="nutrition-value"><%= Math.floor(Math.random() * 500) + 200 %></span>
+          </div>
+          <div class="nutrition-item">
+            <span class="nutrition-label">Protein</span>
+            <span class="nutrition-value"><%= Math.floor(Math.random() * 30) + 5 %>g</span>
+          </div>
+          <div class="nutrition-item">
+            <span class="nutrition-label">Carbs</span>
+            <span class="nutrition-value"><%= Math.floor(Math.random() * 60) + 20 %>g</span>
+          </div>
+          <div class="nutrition-item">
+            <span class="nutrition-label">Fat</span>
+            <span class="nutrition-value"><%= Math.floor(Math.random() * 25) + 5 %>g</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Back to Menu -->
+  <div class="navigation-section">
+    <a href="/menu" class="back-link">← Back to Menu</a>
+    <a href="/cart" class="cart-link">View Cart →</a>
+  </div>
+</div>
+
+<script>
+const basePrice = <%= food.price || 0 %>;
+
+function updateTotal() {
+  const quantity = parseInt(document.getElementById('quantity').value) || 1;
+  const total = (basePrice * quantity).toFixed(2);
+  document.getElementById('totalPrice').textContent = total;
+}
+
+function increaseQuantity() {
+  const input = document.getElementById('quantity');
+  const newValue = Math.min(99, parseInt(input.value) + 1);
+  input.value = newValue;
+  updateTotal();
+}
+
+function decreaseQuantity() {
+  const input = document.getElementById('quantity');
+  const newValue = Math.max(1, parseInt(input.value) - 1);
+  input.value = newValue;
+  updateTotal();
+}
+
+document.getElementById('quantity').addEventListener('change', updateTotal);
+
+function addToCart(event, form) {
+  event.preventDefault();
+  
+  const formData = new FormData(form);
+  const data = {
+    foodName: formData.get('foodName'),
+    price: parseFloat(formData.get('price')),
+    quantity: parseInt(formData.get('quantity'))
+  };
+  
+  fetch('/menu/add-to-cart', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.success) {
+      alert(`✅ ${data.quantity} × ${data.foodName} added to cart!`);
+    } else {
+      alert(`❌ ${result.error}`);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('❌ Failed to add to cart');
+  });
+  
+  return false;
+}
+</script>
+
+<style>
+.food-details-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+
+.food-hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 50px;
+  margin-bottom: 40px;
+}
+
+.food-image-wrapper {
+  position: relative;
+}
+
+.food-main-image {
+  width: 100%;
+  height: 500px;
+  object-fit: cover;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+.category-badge {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: var(--accent-yellow);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 0.85em;
+}
+
+.food-info {
+  padding: 20px 0;
+}
+
+.food-title {
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 10px;
+}
+
+.food-tagline {
+  color: #666;
+  font-size: 1.2em;
+  margin-bottom: 25px;
+  font-style: italic;
+}
+
+.price-section {
+  display: flex;
+  align-items: baseline;
+  gap: 15px;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: #f8f9fa;
+  border-radius: 10px;
+}
+
+.price-label {
+  font-size: 1.2em;
+  color: #666;
+}
+
+.price-value {
+  font-size: 2em;
+  font-weight: bold;
+  color: var(--accent-yellow);
+}
+
+.food-story {
+  margin: 40px 0;
+  padding: 30px;
+  background: white;
+  border-left: 4px solid var(--primary-red);
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+.food-story h2 {
+  color: var(--primary-red);
+  margin-bottom: 20px;
+  font-size: 1.8em;
+}
+
+.story-text {
+  color: #444;
+  line-height: 1.8;
+  font-size: 1.1em;
+}
+
+.taste-experience {
+  margin: 30px 0;
+  padding: 25px;
+  background: linear-gradient(135deg, rgba(214,40,40,0.05), rgba(247,127,0,0.05));
+  border-radius: 10px;
+}
+
+.taste-experience h3 {
+  color: var(--primary-red);
+  margin-bottom: 15px;
+}
+
+.taste-experience p {
+  color: #555;
+  line-height: 1.6;
+}
+
+.order-section {
+  margin: 40px 0;
+  padding: 30px;
+  background: #f8f9fa;
+  border-radius: 15px;
+}
+
+.quantity-selector {
+  display: flex;
+  align-items: center;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #ddd;
+  width: fit-content;  /* Changed from full width */
+}
+
+.qty-btn {
+  width: 35px;  /* Reduced from 40px */
+  height: 35px;  /* Reduced from 40px */
+  border: none;
+  background: white;
+  font-size: 1.1em;  /* Reduced from 1.2em */
+  cursor: pointer;
+  transition: background 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qty-btn:hover {
+  background: var(--accent-yellow);
+  color: white;
+}
+
+.qty-input {
+  width: 50px;  /* Reduced from 60px */
+  height: 35px;  /* Reduced from 40px */
+  border: none;
+  text-align: center;
+  font-size: 1em;  /* Reduced from 1.1em */
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+}
+
+.add-to-cart-form {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;  /* Allow wrapping on small screens */
+}
+
+.add-to-cart-btn {
+  flex: 1;
+  padding: 15px 30px;
+  background: var(--primary-red);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.2em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.add-to-cart-btn:hover {
+  background: #b91c1c;
+}
+
+.login-prompt {
+  text-align: center;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+}
+
+.login-prompt a {
+  color: var(--primary-red);
+  font-weight: bold;
+}
+
+.nutrition-info {
+  margin-top: 40px;
+  padding: 25px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+.nutrition-info h3 {
+  color: var(--primary-red);
+  margin-bottom: 10px;
+}
+
+.nutrition-disclaimer {
+  color: #999;
+  font-size: 0.9em;
+  margin-bottom: 20px;
+  font-style: italic;
+}
+
+.nutrition-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.nutrition-item {
+  text-align: center;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.nutrition-label {
+  display: block;
+  color: #666;
+  font-size: 0.9em;
+  margin-bottom: 5px;
+}
+
+.nutrition-value {
+  display: block;
+  color: var(--primary-red);
+  font-size: 1.3em;
+  font-weight: bold;
+}
+
+.navigation-section {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+}
+
+.back-link, .cart-link {
+  padding: 12px 24px;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: bold;
+  transition: all 0.3s;
+}
+
+.back-link {
+  background: #f8f9fa;
+  color: var(--primary-red);
+}
+
+.back-link:hover {
+  background: #e9ecef;
+}
+
+.cart-link {
+  background: var(--accent-yellow);
+  color: white;
+}
+
+.cart-link:hover {
+  background: #ea580c;
+}
+
+@media (max-width: 768px) {
+  .food-hero {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+  
+  .food-main-image {
+    height: 300px;
+  }
+  
+  .food-title {
+    font-size: 2em;
+  }
+  
+  .add-to-cart-form {
+    flex-direction: column;
+  }
+  
+  .nutrition-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .navigation-section {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .back-link, .cart-link {
+    text-align: center;
+  }
+}
+</style>
+
+<%- include('../partials/footer') %>

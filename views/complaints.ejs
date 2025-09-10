@@ -1,28 +1,928 @@
 <%- include('partials/header') %>
 
-<h2>Submit a Complaint</h2>
+<div class="complaints-container">
+  <div class="complaints-header">
+    <h1>💬 Customer Complaints & Feedback</h1>
+    <p>We value your feedback. Let us know how we can improve!</p>
+  </div>
 
-<form action="/complaints" method="POST" enctype="multipart/form-data">
-  <textarea name="text" rows="5" placeholder="Describe your complaint..." required></textarea><br>
-  <input type="file" name="image"><br>
-  <input type="submit" value="Submit Complaint">
-</form>
+  <!-- Complaint Submission Form -->
+  <div class="complaint-form-section">
+    <h2>📝 Submit a Complaint</h2>
+    
+    <form id="complaintForm" action="/complaints" method="POST" enctype="multipart/form-data">
+      <div class="form-group">
+        <label for="orderId">Order ID (if applicable):</label>
+        <input type="text" id="orderId" name="orderId" placeholder="e.g., #12345">
+      </div>
 
-<hr>
+      <div class="form-group">
+        <label for="category">Category:</label>
+        <select id="category" name="category" required>
+          <option value="">Select a category...</option>
+          <option value="food-quality">Food Quality</option>
+          <option value="delivery">Delivery Issues</option>
+          <option value="service">Customer Service</option>
+          <option value="app">Website/App Issues</option>
+          <option value="hygiene">Hygiene Concerns</option>
+          <option value="pricing">Pricing Issues</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
 
-<h3>All Complaints</h3>
-<ul>
-  <% complaints.forEach(c => { %>
-    <li>
-      <strong><%= c.User ? c.User.username : 'unknown' %>:</strong> <%= c.text %>
-      <% if(c.imagePath) { %>
-        <div>
-          <img src="/<%= c.imagePath %>" style="max-width:200px; margin-top:10px;">
+      <div class="form-group">
+        <label for="details">Complaint Details:</label>
+        <!-- VULNERABILITY: XSS via stored complaint text -->
+        <textarea id="details" name="details" rows="6" required 
+          placeholder="Please describe your issue in detail..."></textarea>
+      </div>
+
+      <!-- File Upload Section (VULNERABILITIES) -->
+      <div class="upload-section">
+        <h3>📎 Attach Evidence (Optional)</h3>
+        <p class="upload-hint">Upload photos, receipts, or documents to support your complaint</p>
+        
+        <!-- Multiple file upload vulnerabilities -->
+        <div class="upload-methods">
+          <!-- Standard Upload -->
+          <div class="upload-method">
+            <label for="photo" class="file-label">
+              <span class="upload-icon">📷</span>
+              <span>Upload Photo/Document</span>
+              <input type="file" id="photo" name="photo" accept="image/*,application/pdf" style="display: none;">
+            </label>
+            <div id="filePreview" class="file-preview"></div>
+          </div>
+
+          <!-- Advanced Upload Options (Hidden vulnerabilities) -->
+          <div class="advanced-options">
+            <button type="button" onclick="enableMultiUpload()" class="advanced-btn">
+              📁 Multiple Files
+            </button>
+            <button type="button" onclick="enableZipUpload()" class="advanced-btn">
+              🗜️ ZIP Archive
+            </button>
+            <button type="button" onclick="enableRawUpload()" class="advanced-btn">
+              📄 Any File Type
+            </button>
+          </div>
+        </div>
+
+        <!-- Hidden inputs for advanced uploads -->
+        <input type="file" id="multiFiles" name="multiFiles" multiple style="display: none;">
+        <input type="file" id="zipFile" name="zipFile" accept=".zip,.rar,.7z" style="display: none;">
+        <input type="file" id="rawFile" name="rawFile" style="display: none;">
+      </div>
+
+      <div class="form-group">
+        <label for="contactMethod">Preferred Contact Method:</label>
+        <select id="contactMethod" name="contactMethod">
+          <option value="email">Email</option>
+          <option value="phone">Phone</option>
+          <option value="app">In-App Message</option>
+          <option value="none">No Follow-up Needed</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>
+          <input type="checkbox" name="urgent" value="true">
+          <span>This is an urgent issue requiring immediate attention</span>
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-submit">Submit Complaint</button>
+        <button type="reset" class="btn-reset">Clear Form</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Complaints Display Section -->
+  <div class="complaints-list-section">
+    <h2>📋 Recent Complaints</h2>
+    
+    <div class="filter-controls">
+      <select id="filterCategory" onchange="filterComplaints()">
+        <option value="">All Categories</option>
+        <option value="food-quality">Food Quality</option>
+        <option value="delivery">Delivery</option>
+        <option value="service">Service</option>
+        <option value="other">Other</option>
+      </select>
+      
+      <select id="sortOrder" onchange="sortComplaints()">
+        <option value="newest">Newest First</option>
+        <option value="oldest">Oldest First</option>
+        <option value="urgent">Urgent First</option>
+      </select>
+    </div>
+
+    <div class="complaints-list">
+      <% if (complaints && complaints.length > 0) { %>
+        <% complaints.forEach(complaint => { %>
+          <div class="complaint-item" data-category="<%= complaint.category || 'other' %>">
+            <div class="complaint-header">
+              <div class="complaint-meta">
+                <span class="complaint-user">
+                  👤 <%= complaint.User ? complaint.User.username : 'Anonymous' %>
+                </span>
+                <span class="complaint-date">
+                  📅 <%= new Date(complaint.createdAt).toLocaleString() %>
+                </span>
+                <% if (complaint.orderId) { %>
+                  <span class="complaint-order">
+                    🛒 Order #<%= complaint.orderId %>
+                  </span>
+                <% } %>
+              </div>
+              <% if (complaint.urgent) { %>
+                <span class="urgent-badge">🚨 URGENT</span>
+              <% } %>
+            </div>
+
+            <div class="complaint-content">
+              <!-- VULNERABILITY: Stored XSS - complaint details rendered without escaping -->
+              <div class="complaint-details">
+                <%- complaint.details %>
+              </div>
+
+              <% if (complaint.photo) { %>
+                <div class="complaint-attachments">
+                  <h4>📎 Attachments:</h4>
+                  <!-- VULNERABILITY: Direct file serving without validation -->
+                  <% if (complaint.photo.match(/\.(jpg|jpeg|png|gif|svg)$/i)) { %>
+                    <!-- VULNERABILITY: SVG can contain XSS -->
+                    <img src="/uploads/<%= complaint.photo %>" 
+                         alt="Complaint Evidence" 
+                         class="complaint-image"
+                         onclick="openImageModal(this.src)">
+                  <% } else if (complaint.photo.match(/\.pdf$/i)) { %>
+                    <a href="/uploads/<%= complaint.photo %>" target="_blank" class="attachment-link">
+                      📄 View PDF Document
+                    </a>
+                  <% } else { %>
+                    <!-- VULNERABILITY: Any file type can be served -->
+                    <a href="/uploads/<%= complaint.photo %>" download class="attachment-link">
+                      📁 Download Attachment
+                    </a>
+                  <% } %>
+                </div>
+              <% } %>
+            </div>
+
+            <div class="complaint-actions">
+              <button onclick="likeComplaint(<%= complaint.id %>)" class="action-btn">
+                👍 Helpful (<span id="likes-<%= complaint.id %>"><%= complaint.likes || 0 %></span>)
+              </button>
+              <button onclick="addComment(<%= complaint.id %>)" class="action-btn">
+                💬 Comment
+              </button>
+              
+              <% if (user && (user.role === 'admin' || user.role === 'staff')) { %>
+                <button onclick="resolveComplaint(<%= complaint.id %>)" class="action-btn admin">
+                  ✅ Mark Resolved
+                </button>
+                <button onclick="escalateComplaint(<%= complaint.id %>)" class="action-btn admin">
+                  ⚡ Escalate
+                </button>
+              <% } %>
+            </div>
+
+            <!-- Comments Section (VULNERABILITY: XSS) -->
+            <div class="comments-section" id="comments-<%= complaint.id %>" style="display: none;">
+              <div class="comment-form">
+                <textarea id="comment-text-<%= complaint.id %>" 
+                  placeholder="Add your comment..."></textarea>
+                <button onclick="submitComment(<%= complaint.id %>)">Post Comment</button>
+              </div>
+              <div class="comments-list"></div>
+            </div>
+          </div>
+        <% }) %>
+      <% } else { %>
+        <div class="no-complaints">
+          <h3>No complaints submitted yet</h3>
+          <p>Be the first to share your feedback!</p>
         </div>
       <% } %>
-      <small>Submitted at <%= new Date(c.createdAt).toLocaleString() %></small>
-    </li>
-  <% }) %>
-</ul>
+    </div>
+  </div>
+
+  <!-- Image Modal -->
+  <div id="imageModal" class="modal" style="display: none;">
+    <span class="close" onclick="closeImageModal()">&times;</span>
+    <img class="modal-content" id="modalImage">
+    <div id="caption"></div>
+  </div>
+</div>
+
+<script>
+// File upload preview with vulnerabilities
+document.getElementById('photo').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  const preview = document.getElementById('filePreview');
+  preview.innerHTML = '';
+  
+  // VULNERABILITY: No proper file type validation
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      // VULNERABILITY: Direct HTML injection
+      preview.innerHTML = `
+        <img src="${e.target.result}" alt="Preview" style="max-width: 200px;">
+        <p>File: ${file.name} (${(file.size / 1024).toFixed(2)} KB)</p>
+      `;
+    };
+    reader.readAsDataURL(file);
+  } else {
+    preview.innerHTML = `<p>📎 ${file.name} (${(file.size / 1024).toFixed(2)} KB)</p>`;
+  }
+});
+
+// Advanced upload methods (vulnerabilities)
+function enableMultiUpload() {
+  const input = document.getElementById('multiFiles');
+  input.click();
+  
+  input.onchange = function() {
+    const files = Array.from(input.files);
+    alert(`Selected ${files.length} files for upload.\nVulnerability: No limit on number of files.`);
+    
+    // VULNERABILITY: No validation on multiple files
+    files.forEach(file => {
+      console.log(`File: ${file.name}, Type: ${file.type}, Size: ${file.size}`);
+    });
+  };
+}
+
+function enableZipUpload() {
+  const input = document.getElementById('zipFile');
+  input.click();
+  
+  input.onchange = function() {
+    if (input.files[0]) {
+      alert('ZIP upload enabled.\nVulnerability: Path traversal via malicious ZIP files.');
+      // VULNERABILITY: ZIP files can contain path traversal payloads
+    }
+  };
+}
+
+function enableRawUpload() {
+  const input = document.getElementById('rawFile');
+  // VULNERABILITY: Remove all file type restrictions
+  input.accept = '';
+  input.click();
+  
+  input.onchange = function() {
+    if (input.files[0]) {
+      const file = input.files[0];
+      alert(`Any file type upload enabled.\nFile: ${file.name}\nVulnerability: Unrestricted file upload.`);
+      // VULNERABILITY: Any file type can be uploaded
+    }
+  };
+}
+
+// Complaint interactions
+function likeComplaint(complaintId) {
+  // VULNERABILITY: No authentication check
+  const likesElement = document.getElementById(`likes-${complaintId}`);
+  const currentLikes = parseInt(likesElement.textContent);
+  likesElement.textContent = currentLikes + 1;
+  
+  // VULNERABILITY: No CSRF protection
+  fetch(`/complaints/${complaintId}/like`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  }).catch(err => console.log('Like error:', err));
+}
+
+function addComment(complaintId) {
+  const commentsSection = document.getElementById(`comments-${complaintId}`);
+  commentsSection.style.display = commentsSection.style.display === 'none' ? 'block' : 'none';
+}
+
+function submitComment(complaintId) {
+  const commentText = document.getElementById(`comment-text-${complaintId}`).value;
+  if (!commentText) return;
+  
+  // VULNERABILITY: No XSS protection on comments
+  fetch(`/complaints/${complaintId}/comment`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ comment: commentText }) // No sanitization
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // VULNERABILITY: Direct HTML injection
+      const commentsList = document.querySelector(`#comments-${complaintId} .comments-list`);
+      commentsList.innerHTML += `
+        <div class="comment">
+          <strong><%= user ? user.username : 'Anonymous' %></strong>: ${commentText}
+          <small>${new Date().toLocaleString()}</small>
+        </div>
+      `;
+      document.getElementById(`comment-text-${complaintId}`).value = '';
+    }
+  });
+}
+
+// Admin functions
+function resolveComplaint(complaintId) {
+  if (!confirm('Mark this complaint as resolved?')) return;
+  
+  // VULNERABILITY: No CSRF protection
+  fetch(`/complaints/${complaintId}/resolve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('✅ Complaint marked as resolved');
+      location.reload();
+    }
+  });
+}
+
+function escalateComplaint(complaintId) {
+  const reason = prompt('Reason for escalation:');
+  if (!reason) return;
+  
+  // VULNERABILITY: No input validation
+  fetch(`/complaints/${complaintId}/escalate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason: reason })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert('⚡ Complaint escalated to management');
+    }
+  });
+}
+
+// Image modal
+function openImageModal(src) {
+  const modal = document.getElementById('imageModal');
+  const modalImg = document.getElementById('modalImage');
+  const captionText = document.getElementById('caption');
+  
+  modal.style.display = 'block';
+  modalImg.src = src;
+  captionText.innerHTML = src.split('/').pop();
+}
+
+function closeImageModal() {
+  document.getElementById('imageModal').style.display = 'none';
+}
+
+// Filter and sort functions
+function filterComplaints() {
+  const category = document.getElementById('filterCategory').value;
+  const complaints = document.querySelectorAll('.complaint-item');
+  
+  complaints.forEach(complaint => {
+    if (!category || complaint.dataset.category === category) {
+      complaint.style.display = 'block';
+    } else {
+      complaint.style.display = 'none';
+    }
+  });
+}
+
+function sortComplaints() {
+  const sortOrder = document.getElementById('sortOrder').value;
+  const container = document.querySelector('.complaints-list');
+  const complaints = Array.from(container.querySelectorAll('.complaint-item'));
+  
+  complaints.sort((a, b) => {
+    const dateA = new Date(a.querySelector('.complaint-date').textContent.replace('📅 ', ''));
+    const dateB = new Date(b.querySelector('.complaint-date').textContent.replace('📅 ', ''));
+    const urgentA = a.querySelector('.urgent-badge') ? 1 : 0;
+    const urgentB = b.querySelector('.urgent-badge') ? 1 : 0;
+    
+    switch (sortOrder) {
+      case 'oldest':
+        return dateA - dateB;
+      case 'urgent':
+        return urgentB - urgentA || dateB - dateA;
+      case 'newest':
+      default:
+        return dateB - dateA;
+    }
+  });
+  
+  complaints.forEach(complaint => container.appendChild(complaint));
+}
+
+// Form submission enhancement
+document.getElementById('complaintForm').addEventListener('submit', function(e) {
+  // Allow default form submission but log for debugging
+  console.log('Submitting complaint with potential vulnerabilities:');
+  console.log('- No CSRF token');
+  console.log('- No file type validation on server');
+  console.log('- No XSS sanitization');
+});
+
+// Auto-expand textarea
+document.getElementById('details').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = this.scrollHeight + 'px';
+});
+</script>
+
+<style>
+.complaints-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+
+.complaints-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.complaints-header h1 {
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 10px;
+}
+
+.complaints-header p {
+  color: #666;
+  font-size: 1.1em;
+}
+
+.complaint-form-section {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  margin-bottom: 40px;
+}
+
+.complaint-form-section h2 {
+  color: var(--primary-red);
+  margin-bottom: 25px;
+}
+
+.form-group {
+  margin-bottom: 25px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #333;
+}
+
+.form-group input[type="text"],
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.3s;
+}
+
+.form-group input[type="text"]:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 0 3px rgba(247, 127, 0, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.upload-section {
+  margin: 30px 0;
+  padding: 25px;
+  background: #f8f9fa;
+  border-radius: 10px;
+  border: 2px dashed #ddd;
+}
+
+.upload-section h3 {
+  color: var(--primary-red);
+  margin-bottom: 10px;
+}
+
+.upload-hint {
+  color: #666;
+  font-size: 0.9em;
+  margin-bottom: 20px;
+}
+
+.upload-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.file-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: var(--accent-yellow);
+  color: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+.file-label:hover {
+  background: var(--primary-red);
+}
+
+.upload-icon {
+  font-size: 1.5em;
+}
+
+.file-preview {
+  margin-top: 15px;
+}
+
+.file-preview img {
+  border-radius: 8px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+.advanced-options {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.advanced-btn {
+  padding: 8px 16px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background 0.3s;
+}
+
+.advanced-btn:hover {
+  background: #5a6268;
+}
+
+.form-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 30px;
+}
+
+.btn-submit {
+  flex: 1;
+  padding: 15px;
+  background: var(--primary-red);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-submit:hover {
+  background: #b91c1c;
+}
+
+.btn-reset {
+  padding: 15px 30px;
+  background: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-reset:hover {
+  background: #5a6268;
+}
+
+.complaints-list-section {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.complaints-list-section h2 {
+  color: var(--primary-red);
+  margin-bottom: 25px;
+}
+
+.filter-controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.filter-controls select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  background: white;
+}
+
+.complaint-item {
+  padding: 25px;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  transition: box-shadow 0.3s;
+  background: white;  /* Ensure white background */
+}
+
+.complaint-item:hover {
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+/* Ensure all text in complaints is visible */
+.complaint-item * {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.complaint-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.complaint-meta {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  color: #666 !important;  /* Ensure meta text is visible */
+  font-size: 0.9em;
+  opacity: 1;
+}
+
+.complaint-user {
+  font-weight: bold;
+  color: var(--primary-red) !important;  /* Force color */
+}
+
+.urgent-badge {
+  padding: 5px 10px;
+  background: #dc3545;
+  color: white;
+  border-radius: 20px;
+  font-size: 0.85em;
+  font-weight: bold;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.complaint-details {
+  color: #333 !important;  /* Force text color to be visible */
+  line-height: 1.6;
+  margin: 20px 0;
+  opacity: 1;  /* Ensure full opacity */
+}
+
+.complaint-attachments {
+  margin: 20px 0;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.complaint-attachments h4 {
+  color: #666;
+  margin-bottom: 10px;
+  font-size: 0.9em;
+}
+
+.complaint-image {
+  max-width: 300px;
+  max-height: 200px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.3s;
+}
+
+.complaint-image:hover {
+  transform: scale(1.05);
+}
+
+.attachment-link {
+  display: inline-block;
+  padding: 8px 16px;
+  background: var(--accent-yellow);
+  color: white;
+  text-decoration: none;
+  border-radius: 5px;
+  font-size: 0.9em;
+  transition: background 0.3s;
+}
+
+.attachment-link:hover {
+  background: var(--primary-red);
+}
+
+.complaint-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  padding: 8px 16px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.3s;
+}
+
+.action-btn:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
+}
+
+.action-btn.admin {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+.action-btn.admin:hover {
+  background: var(--accent-green);
+  color: white;
+}
+
+.comments-section {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.comment-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.comment-form textarea {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.comment-form button {
+  padding: 10px 20px;
+  background: var(--accent-yellow);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.comment {
+  padding: 10px;
+  background: white;
+  border-radius: 5px;
+  margin-bottom: 10px;
+}
+
+.comment strong {
+  color: var(--primary-red);
+}
+
+.comment small {
+  display: block;
+  color: #999;
+  font-size: 0.85em;
+  margin-top: 5px;
+}
+
+.no-complaints {
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+.no-complaints h3 {
+  color: var(--primary-red);
+  margin-bottom: 10px;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  padding-top: 60px;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.9);
+}
+
+.modal-content {
+  margin: auto;
+  display: block;
+  max-width: 80%;
+  max-height: 80%;
+}
+
+#caption {
+  margin: auto;
+  display: block;
+  width: 80%;
+  max-width: 700px;
+  text-align: center;
+  color: #ccc;
+  padding: 10px 0;
+}
+
+.close {
+  position: absolute;
+  top: 15px;
+  right: 35px;
+  color: #f1f1f1;
+  font-size: 40px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--accent-yellow);
+}
+
+@media (max-width: 768px) {
+  .complaints-container {
+    padding: 20px 15px;
+  }
+  
+  .complaint-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  
+  .complaint-meta {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .filter-controls {
+    flex-direction: column;
+  }
+  
+  .filter-controls select {
+    width: 100%;
+  }
+  
+  .advanced-options {
+    flex-wrap: wrap;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .btn-reset {
+    width: 100%;
+  }
+}
+</style>
 
 <%- include('partials/footer') %>

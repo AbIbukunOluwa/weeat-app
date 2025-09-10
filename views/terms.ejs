@@ -1,0 +1,228 @@
+<%- include('partials/header', { title: 'Terms of Service - WeEat', user: user }) %>
+
+<div class="legal-container">
+  <div class="legal-header">
+    <h1>Terms of Service</h1>
+    <p class="last-updated">Effective Date: <%= new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) %></p>
+  </div>
+
+  <div class="legal-content">
+    <section class="legal-section">
+      <h2>1. Acceptance of Terms</h2>
+      <p>By accessing or using WeEat's services, you agree to be bound by these Terms of Service. If you disagree with any part of these terms, you may not access our services.</p>
+    </section>
+
+    <section class="legal-section">
+      <h2>2. Use of Service</h2>
+      <h3>Eligibility</h3>
+      <p>You must be at least 13 years old to use our services. By using WeEat, you represent that you meet this age requirement.</p>
+      
+      <h3>Account Responsibilities</h3>
+      <ul>
+        <li>You are responsible for maintaining the confidentiality of your account</li>
+        <li>You agree to accept responsibility for all activities under your account</li>
+        <li>You must provide accurate and complete information</li>
+        <li>You must notify us immediately of any unauthorized use</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>3. Orders and Payment</h2>
+      <h3>Ordering Process</h3>
+      <ul>
+        <li>All orders are subject to availability and confirmation</li>
+        <li>Prices are subject to change without notice</li>
+        <li>We reserve the right to refuse or cancel any order</li>
+        <li>Delivery times are estimates and not guaranteed</li>
+      </ul>
+      
+      <h3>Payment Terms</h3>
+      <ul>
+        <li>Payment is required at the time of order</li>
+        <li>We accept major credit cards and digital payment methods</li>
+        <li>All prices are in Canadian dollars unless otherwise stated</li>
+        <li>Applicable taxes will be added to your order total</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>4. Cancellations and Refunds</h2>
+      <ul>
+        <li>Orders may be cancelled within 5 minutes of placement</li>
+        <li>Refunds for cancelled orders will be processed within 5-7 business days</li>
+        <li>We reserve the right to refuse refunds for completed deliveries</li>
+        <li>Quality issues must be reported within 24 hours of delivery</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>5. User Conduct</h2>
+      <p>You agree not to:</p>
+      <ul>
+        <li>Use our service for any unlawful purpose</li>
+        <li>Impersonate any person or entity</li>
+        <li>Interfere with or disrupt the service</li>
+        <li>Attempt to gain unauthorized access to any portion of the service</li>
+        <li>Upload viruses or malicious code</li>
+        <li>Harass, abuse, or harm other users or our staff</li>
+      </ul>
+      <p class="warning-note">⚠️ Note: This demo application contains intentional security vulnerabilities for educational purposes. Exploiting these vulnerabilities is encouraged for learning, but only within this sandboxed environment.</p>
+    </section>
+
+    <section class="legal-section">
+      <h2>6. Intellectual Property</h2>
+      <p>All content on WeEat, including but not limited to text, graphics, logos, images, and software, is the property of WeEat or its content suppliers and is protected by intellectual property laws.</p>
+      <ul>
+        <li>You may not reproduce, distribute, or create derivative works without permission</li>
+        <li>User-generated content remains your property, but you grant us a license to use it</li>
+        <li>Feedback and suggestions become our property and may be used without compensation</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>7. Limitation of Liability</h2>
+      <p>TO THE MAXIMUM EXTENT PERMITTED BY LAW:</p>
+      <ul>
+        <li>WeEat shall not be liable for any indirect, incidental, or consequential damages</li>
+        <li>Our total liability shall not exceed the amount paid for the specific order</li>
+        <li>We are not responsible for delays due to circumstances beyond our control</li>
+        <li>Food allergies and dietary restrictions are the customer's responsibility to communicate</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>8. Indemnification</h2>
+      <p>You agree to indemnify and hold harmless WeEat, its affiliates, and their respective officers, directors, employees, and agents from any claims, losses, damages, liabilities, and expenses arising from your use of our services or violation of these terms.</p>
+    </section>
+
+    <section class="legal-section">
+      <h2>9. Modifications to Service</h2>
+      <p>We reserve the right to:</p>
+      <ul>
+        <li>Modify or discontinue any part of our service</li>
+        <li>Change prices with reasonable notice</li>
+        <li>Update these terms at any time</li>
+        <li>Limit service availability in certain geographic areas</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>10. Governing Law</h2>
+      <p>These Terms of Service are governed by the laws of Manitoba, Canada. Any disputes shall be resolved in the courts of Winnipeg, Manitoba.</p>
+    </section>
+
+    <section class="legal-section">
+      <h2>11. Severability</h2>
+      <p>If any provision of these Terms is found to be unenforceable, the remaining provisions will continue to be valid and enforceable.</p>
+    </section>
+
+    <section class="legal-section">
+      <h2>12. Contact Information</h2>
+      <p>For questions about these Terms of Service, please contact us:</p>
+      <div class="contact-info">
+        <p>📧 legal@weeat.com</p>
+        <p>📞 +1 (204) 555-WEAT</p>
+        <p>📍 123 Portage Avenue, Winnipeg, MB R3B 2A3, Canada</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<style>
+.legal-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.legal-header {
+  text-align: center;
+  margin-bottom: 40px;
+  padding-bottom: 30px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.legal-header h1 {
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 10px;
+}
+
+.last-updated {
+  color: #666;
+  font-style: italic;
+}
+
+.legal-content {
+  background: white;
+  border-radius: 15px;
+  padding: 40px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.legal-section {
+  margin-bottom: 40px;
+}
+
+.legal-section h2 {
+  color: var(--primary-red);
+  margin-bottom: 20px;
+  font-size: 1.5em;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 10px;
+}
+
+.legal-section h3 {
+  color: var(--accent-yellow);
+  margin: 20px 0 10px 0;
+  font-size: 1.2em;
+}
+
+.legal-section p {
+  color: #555;
+  line-height: 1.8;
+  margin-bottom: 15px;
+}
+
+.legal-section ul {
+  margin: 15px 0;
+  padding-left: 30px;
+}
+
+.legal-section li {
+  color: #555;
+  line-height: 1.8;
+  margin-bottom: 8px;
+}
+
+.warning-note {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.contact-info {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+.contact-info p {
+  margin: 8px 0;
+}
+
+@media (max-width: 768px) {
+  .legal-content {
+    padding: 20px;
+  }
+  
+  .legal-header h1 {
+    font-size: 2em;
+  }
+}
+</style>
+
+<%- include('partials/footer') %>

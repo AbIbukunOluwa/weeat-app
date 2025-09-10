@@ -37,53 +37,6 @@
   </div>
 </section>
 
-<!-- Quick Links -->
-<section class="quick-links">
-  <h2>Quick Actions</h2>
-  <div class="links-grid">
-    <% if (user) { %>
-      <a href="/menu" class="link-card">
-        <span class="icon">🍕</span>
-        <span class="text">Browse Menu</span>
-      </a>
-      <a href="/cart" class="link-card">
-        <span class="icon">🛒</span>
-        <span class="text">My Cart</span>
-      </a>
-      <a href="/orders" class="link-card">
-        <span class="icon">📦</span>
-        <span class="text">My Orders</span>
-      </a>
-      <a href="/complaints" class="link-card">
-        <span class="icon">💬</span>
-        <span class="text">Submit Complaint</span>
-      </a>
-      <% if (user.role === 'admin' || user.role === 'staff') { %>
-        <a href="/admin" class="link-card admin">
-          <span class="icon">🛡️</span>
-          <span class="text">Admin Panel</span>
-        </a>
-      <% } %>
-      <a href="/vulns" class="link-card">
-        <span class="icon">🐛</span>
-        <span class="text">Bug Tracker</span>
-      </a>
-    <% } else { %>
-      <a href="/auth/login" class="link-card">
-        <span class="icon">🔐</span>
-        <span class="text">Login</span>
-      </a>
-      <a href="/auth/register" class="link-card">
-        <span class="icon">✍️</span>
-        <span class="text">Register</span>
-      </a>
-      <a href="/menu" class="link-card">
-        <span class="icon">📖</span>
-        <span class="text">View Menu</span>
-      </a>
-    <% } %>
-  </div>
-</section>
 
 <style>
 .hero {
@@ -219,59 +172,6 @@
   background: var(--primary-red);
 }
 
-.quick-links {
-  background: #f8f9fa;
-  padding: 40px 20px;
-  margin-top: 40px;
-}
-
-.quick-links h2 {
-  text-align: center;
-  color: var(--primary-red);
-  margin-bottom: 30px;
-}
-
-.links-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 20px;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.link-card {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 25px 15px;
-  background: white;
-  border-radius: 10px;
-  text-decoration: none;
-  color: var(--text-gray);
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.link-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-  background: var(--accent-yellow);
-  color: white;
-}
-
-.link-card .icon {
-  font-size: 2em;
-  margin-bottom: 10px;
-}
-
-.link-card .text {
-  font-weight: 600;
-  text-align: center;
-}
-
-.link-card.admin {
-  background: #fff3cd;
-}
 
 .no-items {
   grid-column: 1 / -1;

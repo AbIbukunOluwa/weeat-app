@@ -199,57 +199,33 @@ router.get('/food/:id', async (req, res) => {
       query = `SELECT *, cost_price, supplier_info, internal_notes FROM foods WHERE id = ${foodId}`;
     }
 
-    const food = await sequelize.query(query, { 
+    const foodResult = await sequelize.query(query, { 
       type: sequelize.QueryTypes.SELECT 
     });
 
-    if (!food || food.length === 0) {
-      return res.status(404).json({ error: 'Food not found' });
+    if (!foodResult || foodResult.length === 0) {
+      return res.status(404).render('error', {
+        error: 'Food item not found',
+        title: 'Not Found',
+        user: req.session.user || null
+      });
     }
 
-    const foodItem = food[0];
+    const food = foodResult[0];
     
-    // VULNERABILITY: Expose different levels of data based on conditions
-    let response = {
-      id: foodItem.id,
-      name: foodItem.name,
-      description: foodItem.description,
-      price: foodItem.price,
-      category: foodItem.category,
-      image: foodItem.image
-    };
-
-    // VULNERABILITY: Additional data for staff/admin
-    if (req.session?.user?.role === 'staff' || includeInternal) {
-      response.cost_price = foodItem.cost_price;
-      response.profit_margin = ((foodItem.price - foodItem.cost_price) / foodItem.price * 100).toFixed(2) + '%';
-      response.supplier_info = foodItem.supplier_info;
-    }
-
-    // VULNERABILITY: Most sensitive data requires specific headers
-    if (showCosts && req.headers['x-financial-access'] === 'granted') {
-      response.cost_breakdown = {
-        ingredients: foodItem.cost_price * 0.6,
-        labor: foodItem.cost_price * 0.25,
-        overhead: foodItem.cost_price * 0.15
-      };
-      response.internal_notes = foodItem.internal_notes;
-    }
-
-    // VULNERABILITY: Database query exposure
-    if (req.headers['x-sql-debug'] === 'true') {
-      response.debug_info = {
-        query: query,
-        execution_time: '5ms',
-        database_user: process.env.DB_USER
-      };
-    }
-
-    res.json(response);
+    // Render the food details page
+    res.render('menu/food-details', {
+      title: food.name + ' - WeEat',
+      user: req.session.user || null,
+      food: food
+    });
+    
   } catch (err) {
     console.error('Food details error:', err);
-    res.status(500).json({ 
-      error: 'Database error',
+    res.status(500).render('error', { 
+      error: 'Failed to load food details',
+      title: 'Error',
+      user: req.session.user || null,
       query: req.headers['x-sql-debug'] === 'true' ? 
         `SELECT * FROM foods WHERE id = ${req.params.id}` : null,
       message: req.headers['x-sql-debug'] === 'true' ? err.message : null

@@ -1,0 +1,214 @@
+<%- include('partials/header', { title: 'Privacy Policy - WeEat', user: user }) %>
+
+<div class="legal-container">
+  <div class="legal-header">
+    <h1>Privacy Policy</h1>
+    <p class="last-updated">Last Updated: <%= new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) %></p>
+  </div>
+
+  <div class="legal-content">
+    <section class="legal-section">
+      <h2>1. Introduction</h2>
+      <p>Welcome to WeEat ("we," "our," or "us"). We're committed to protecting your personal information and your right to privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our services.</p>
+    </section>
+
+    <section class="legal-section">
+      <h2>2. Information We Collect</h2>
+      <h3>Personal Information</h3>
+      <ul>
+        <li>Name and contact details (email, phone number, delivery address)</li>
+        <li>Account credentials (username and encrypted password)</li>
+        <li>Payment information (processed securely through third-party providers)</li>
+        <li>Order history and preferences</li>
+      </ul>
+      
+      <h3>Automatically Collected Information</h3>
+      <ul>
+        <li>Device information (IP address, browser type, operating system)</li>
+        <li>Usage data (pages visited, time spent, click patterns)</li>
+        <li>Location data (with your permission, for delivery services)</li>
+        <li>Cookies and similar tracking technologies</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>3. How We Use Your Information</h2>
+      <p>We use your personal information to:</p>
+      <ul>
+        <li>Process and deliver your food orders</li>
+        <li>Send order confirmations and updates</li>
+        <li>Provide customer support</li>
+        <li>Improve our menu and services based on your preferences</li>
+        <li>Send promotional offers (with your consent)</li>
+        <li>Detect and prevent fraud or security issues</li>
+        <li>Comply with legal obligations</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>4. Information Sharing</h2>
+      <p>We do not sell your personal information. We may share your information with:</p>
+      <ul>
+        <li><strong>Delivery Partners:</strong> To fulfill your orders</li>
+        <li><strong>Payment Processors:</strong> To handle transactions securely</li>
+        <li><strong>Service Providers:</strong> Who help us operate our business</li>
+        <li><strong>Legal Authorities:</strong> When required by law or to protect rights</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>5. Data Security</h2>
+      <p>We implement industry-standard security measures to protect your information, including:</p>
+      <ul>
+        <li>Encrypted data transmission (SSL/TLS)</li>
+        <li>Secure password storage using bcrypt hashing</li>
+        <li>Regular security audits and updates</li>
+        <li>Limited access to personal information on a need-to-know basis</li>
+      </ul>
+      <p class="warning-note">⚠️ Note: This is a demo application with intentional security vulnerabilities for educational purposes. Do not use real personal information.</p>
+    </section>
+
+    <section class="legal-section">
+      <h2>6. Your Rights</h2>
+      <p>You have the right to:</p>
+      <ul>
+        <li>Access your personal information</li>
+        <li>Correct inaccurate data</li>
+        <li>Request deletion of your account</li>
+        <li>Opt-out of marketing communications</li>
+        <li>Download your data in a portable format</li>
+      </ul>
+    </section>
+
+    <section class="legal-section">
+      <h2>7. Cookies Policy</h2>
+      <p>We use cookies to:</p>
+      <ul>
+        <li>Keep you logged in</li>
+        <li>Remember your preferences</li>
+        <li>Analyze site traffic and usage</li>
+        <li>Personalize your experience</li>
+      </ul>
+      <p>You can control cookies through your browser settings, but disabling them may affect site functionality.</p>
+    </section>
+
+    <section class="legal-section">
+      <h2>8. Children's Privacy</h2>
+      <p>Our services are not intended for children under 13. We do not knowingly collect information from children under 13 years of age.</p>
+    </section>
+
+    <section class="legal-section">
+      <h2>9. Contact Us</h2>
+      <p>If you have questions about this Privacy Policy, please contact us:</p>
+      <div class="contact-info">
+        <p>📧 privacy@weeat.com</p>
+        <p>📞 +1 (204) 555-WEAT</p>
+        <p>📍 123 Portage Avenue, Winnipeg, MB R3B 2A3, Canada</p>
+      </div>
+    </section>
+
+    <section class="legal-section">
+      <h2>10. Changes to This Policy</h2>
+      <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last Updated" date.</p>
+    </section>
+  </div>
+</div>
+
+<style>
+.legal-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.legal-header {
+  text-align: center;
+  margin-bottom: 40px;
+  padding-bottom: 30px;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.legal-header h1 {
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 10px;
+}
+
+.last-updated {
+  color: #666;
+  font-style: italic;
+}
+
+.legal-content {
+  background: white;
+  border-radius: 15px;
+  padding: 40px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.legal-section {
+  margin-bottom: 40px;
+}
+
+.legal-section h2 {
+  color: var(--primary-red);
+  margin-bottom: 20px;
+  font-size: 1.5em;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 10px;
+}
+
+.legal-section h3 {
+  color: var(--accent-yellow);
+  margin: 20px 0 10px 0;
+  font-size: 1.2em;
+}
+
+.legal-section p {
+  color: #555;
+  line-height: 1.8;
+  margin-bottom: 15px;
+}
+
+.legal-section ul {
+  margin: 15px 0;
+  padding-left: 30px;
+}
+
+.legal-section li {
+  color: #555;
+  line-height: 1.8;
+  margin-bottom: 8px;
+}
+
+.warning-note {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.contact-info {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+.contact-info p {
+  margin: 8px 0;
+}
+
+@media (max-width: 768px) {
+  .legal-content {
+    padding: 20px;
+  }
+  
+  .legal-header h1 {
+    font-size: 2em;
+  }
+}
+</style>
+
+<%- include('partials/footer') %>

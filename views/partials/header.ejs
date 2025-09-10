@@ -14,8 +14,54 @@
         <li><a href="/menu">Menu</a></li>
         <li><a href="/about">About</a></li>
         <% if (user) { %>
-          <li><a href="/profile"><%= user.username %></a></li>
-          <li><a href="/logout">Logout</a></li>
+          <li class="profile-dropdown">
+            <div class="profile-trigger" onclick="toggleDropdown()">
+              <% if (user.avatar) { %>
+                <img src="<%= user.avatar %>" alt="Profile" class="profile-pic">
+              <% } else { %>
+                <div class="profile-pic-placeholder">
+                  <%= user.username.charAt(0).toUpperCase() %>
+                </div>
+              <% } %>
+              <span class="dropdown-arrow">▼</span>
+            </div>
+            <div class="dropdown-menu" id="profileDropdown">
+              <div class="dropdown-header">
+                <strong><%= user.username %></strong>
+                <span class="user-email"><%= user.email %></span>
+              </div>
+              <div class="dropdown-divider"></div>
+              <a href="/profile" class="dropdown-item">
+                <span class="dropdown-icon">👤</span> My Profile
+              </a>
+              <a href="/cart" class="dropdown-item">
+                <span class="dropdown-icon">🛒</span> Cart
+              </a>
+              <a href="/orders" class="dropdown-item">
+                <span class="dropdown-icon">📦</span> My Orders
+              </a>
+              <a href="/complaints" class="dropdown-item">
+                <span class="dropdown-icon">💬</span> Feedback
+              </a>
+              <div class="dropdown-divider"></div>
+              <a href="/profile#settings" class="dropdown-item">
+                <span class="dropdown-icon">⚙️</span> Settings
+              </a>
+              <a href="/profile#security" class="dropdown-item">
+                <span class="dropdown-icon">🔒</span> Security
+              </a>
+              <% if (user.role === 'admin' || user.role === 'staff') { %>
+                <div class="dropdown-divider"></div>
+                <a href="/admin" class="dropdown-item admin-link">
+                  <span class="dropdown-icon">🛡️</span> Admin Panel
+                </a>
+              <% } %>
+              <div class="dropdown-divider"></div>
+              <a href="/auth/logout" class="dropdown-item logout">
+                <span class="dropdown-icon">🚪</span> Logout
+              </a>
+            </div>
+          </li>
         <% } else { %>
           <li><a href="/auth/login">Login</a></li>
           <li><a href="/auth/register">Register</a></li>
@@ -23,3 +69,261 @@
       </ul>
     </header>
     <main class="content">
+
+<style>
+/* Fixed Navbar Styles */
+
+.navbar {
+  background: var(--primary-red);
+  padding: 12px 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;  /* This ensures vertical alignment */
+  height: 60px;  /* Fixed height for consistency */
+}
+
+.navbar .logo {
+  display: flex;
+  align-items: center;
+}
+
+.navbar .logo a {
+  color: var(--bg-white);
+  font-size: 1.5em;
+  font-weight: bold;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.navbar .nav-links {
+  list-style: none;
+  display: flex;
+  gap: 18px;
+  margin: 0;
+  padding: 0;
+  align-items: center;  /* Ensure all items align vertically */
+  height: 100%;
+}
+
+.navbar .nav-links li {
+  display: flex;
+  align-items: center;  /* Center each li vertically */
+}
+
+.navbar .nav-links li a {
+  color: var(--bg-white);
+  text-decoration: none;
+  font-weight: bold;
+  transition: color 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+}
+
+.navbar .nav-links li a:hover {
+  color: var(--accent-yellow);
+}
+
+/* Profile Dropdown Styles - Fixed */
+.profile-dropdown {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+
+.profile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 50px;
+  transition: background 0.3s;
+}
+
+.profile-trigger:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.profile-pic {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--accent-yellow);
+}
+
+.profile-pic-placeholder {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  background: var(--accent-yellow);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 1.2em;
+}
+
+.dropdown-arrow {
+  color: white;
+  font-size: 0.8em;
+  transition: transform 0.3s;
+}
+
+.profile-trigger.active .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 10px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+  min-width: 250px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dropdown-menu.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.dropdown-header {
+  padding: 15px;
+  background: linear-gradient(135deg, var(--primary-red), var(--accent-yellow));
+  color: white;
+}
+
+.dropdown-header strong {
+  display: block;
+  font-size: 1.1em;
+  margin-bottom: 3px;
+}
+
+.user-email {
+  font-size: 0.85em;
+  opacity: 0.9;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 0;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 15px;
+  color: var(--text-gray) !important;  /* Force color to always show */
+  text-decoration: none;
+  transition: background 0.2s;
+  opacity: 1;  /* Ensure full opacity */
+}
+
+.dropdown-item:hover {
+  background: #f8f9fa;
+  color: var(--primary-red) !important;  /* Change color on hover */
+}
+
+.dropdown-item.admin-link {
+  color: var(--primary-red) !important;  /* Admin link always red */
+  font-weight: 600;
+}
+
+.dropdown-item.logout {
+  color: #dc3545 !important;  /* Logout always red */
+}
+
+.dropdown-item.logout:hover {
+  background: #fee;
+  color: #b91c1c !important;
+}
+
+/* Ensure dropdown text is always visible */
+.dropdown-item span {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Click outside to close */
+.dropdown-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  display: none;
+}
+
+.dropdown-overlay.show {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .dropdown-menu {
+    right: -10px;
+    min-width: 200px;
+  }
+  
+  .profile-pic,
+  .profile-pic-placeholder {
+    width: 30px;
+    height: 30px;
+  }
+}
+</style>
+
+<script>
+function toggleDropdown() {
+  const dropdown = document.getElementById('profileDropdown');
+  const trigger = document.querySelector('.profile-trigger');
+  const isOpen = dropdown.classList.contains('show');
+  
+  if (isOpen) {
+    dropdown.classList.remove('show');
+    trigger.classList.remove('active');
+    removeClickOutside();
+  } else {
+    dropdown.classList.add('show');
+    trigger.classList.add('active');
+    addClickOutside();
+  }
+}
+
+function addClickOutside() {
+  setTimeout(() => {
+    document.addEventListener('click', closeDropdownOutside);
+  }, 0);
+}
+
+function removeClickOutside() {
+  document.removeEventListener('click', closeDropdownOutside);
+}
+
+function closeDropdownOutside(event) {
+  const dropdown = document.getElementById('profileDropdown');
+  const trigger = document.querySelector('.profile-trigger');
+  const profileDropdown = document.querySelector('.profile-dropdown');
+  
+  if (!profileDropdown.contains(event.target)) {
+    dropdown.classList.remove('show');
+    trigger.classList.remove('active');
+    removeClickOutside();
+  }
+}
+</script>
