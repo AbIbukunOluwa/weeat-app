@@ -17,6 +17,8 @@ const vulnsRoutes = require('./routes/vulns');
 const profileRoutes = require('./routes/profile');
 const cartRoutes = require('./routes/cart');
 const menuRoutes = require('./routes/menu');
+const apiRoutes = require('./routes/api');
+const uploadRoutes = require('./routes/upload');
 
 // Admin and Staff routes
 const adminRoutes = require('./routes/admin');
@@ -130,8 +132,33 @@ app.use((req, res, next) => {
   next();
 });
 
+// Modern API vulnerabilities
+app.use('/api', apiRoutes);
+
 // Routes
-app.get('/', (req, res) => res.render('index', { title: 'WeEat - Fast Food Delivery' }));
+app.get('/', async (req, res) => {
+  try {
+    // Load some food items for the homepage
+    const foods = await Food.findAll({ 
+      limit: 8,
+      where: { status: 'active' },
+      order: [['createdAt', 'DESC']]
+    });
+    
+    res.render('index', { 
+      title: 'WeEat - Fast Food Delivery',
+      user: req.session.user || null,
+      foods: foods
+    });
+  } catch (err) {
+    console.error('Homepage error:', err);
+    res.render('index', { 
+      title: 'WeEat - Fast Food Delivery',
+      user: req.session.user || null,
+      foods: []
+    });
+  }
+});
 
 // Public routes
 app.use('/auth', authRoutes);

@@ -15,6 +15,33 @@ class Food extends Model {
       price: {
         type: DataTypes.FLOAT,
         allowNull: false
+      },
+      category: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'mains'
+      },
+      description: {
+        type: DataTypes.TEXT,
+        allowNull: true
+      },
+      status: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        defaultValue: 'active'
+      },
+      // Hidden fields for vulnerability testing
+      cost_price: {
+        type: DataTypes.FLOAT,
+        allowNull: true
+      },
+      supplier_info: {
+        type: DataTypes.TEXT,
+        allowNull: true
+      },
+      internal_notes: {
+        type: DataTypes.TEXT,
+        allowNull: true
       }
     }, {
       sequelize,
@@ -23,6 +50,13 @@ class Food extends Model {
       timestamps: true
     });
     return Food;
+  }
+
+  static associate(models) {
+    // Food can have many reviews
+    if (models.Review) {
+      Food.hasMany(models.Review, { foreignKey: 'foodId' });
+    }
   }
 }
 

@@ -39,7 +39,9 @@ router.post('/register', async (req, res) => {
       email: user.email,
       role: user.role 
     };
-    res.redirect('/dashboard');
+    
+    // Fixed redirect - go to menu instead of dashboard
+    res.redirect('/menu');
   } catch (err) {
     console.error(err);
     res.render('auth/register', { 
@@ -78,11 +80,15 @@ router.post('/login', async (req, res) => {
       role: user.role 
     };
     
-    // Redirect based on role
+    // Fixed redirects based on role
     if (user.role === 'admin') {
       res.redirect('/admin');
+    } else if (user.role === 'staff') {
+      // Staff can go to admin or staff portal
+      res.redirect('/admin');
     } else {
-      res.redirect('/dashboard');
+      // Regular customers go to menu
+      res.redirect('/menu');
     }
   } catch (err) {
     console.error(err);

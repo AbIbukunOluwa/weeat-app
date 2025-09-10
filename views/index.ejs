@@ -1,13 +1,305 @@
 <%- include('partials/header') %>
 
-<h1>Welcome to WeEat 🍔</h1>
-<p>Your fast food complaints, all in one place.</p>
+<section class="hero">
+  <h1>Welcome to WeEat 🍔</h1>
+  <p>Your favorite fast food, delivered fast!</p>
+  <% if (user) { %>
+    <p>Welcome back, <strong><%= user.username %></strong>! 👋</p>
+  <% } else { %>
+    <div class="hero-actions">
+      <a href="/auth/login" class="btn btn-primary">Login</a>
+      <a href="/auth/register" class="btn btn-secondary">Register</a>
+      <a href="/menu" class="btn btn-outline">Browse Menu</a>
+    </div>
+  <% } %>
+</section>
 
-<% if (user) { %>
-  <p>Hello, <strong><%= user.username %></strong> 👋</p>
-  <p><a href="/complaints">Submit/View Complaints</a></p>
-<% } else { %>
-  <p><a href="/auth/login">Login</a> or <a href="/auth/register">Register</a> to file complaints.</p>
-<% } %>
+<!-- Featured Menu Items -->
+<section class="featured-section">
+  <h2>🌟 Popular Items</h2>
+  <div class="food-grid">
+    <% if (typeof foods !== 'undefined' && foods && foods.length > 0) { %>
+      <% foods.slice(0, 8).forEach(food => { %>
+        <div class="food-item">
+          <img src="<%= food.image %>" alt="<%= food.name %>" onerror="this.src='/public/images/placeholder.jpg'">
+          <h3><%= food.name %></h3>
+          <p class="description"><%= food.description || 'Delicious food item' %></p>
+          <p class="price">$<%= food.price ? food.price.toFixed(2) : '0.00' %></p>
+          <a href="/menu" class="btn-add">Order Now</a>
+        </div>
+      <% }) %>
+    <% } else { %>
+      <div class="no-items">
+        <p>Menu items loading...</p>
+        <a href="/menu" class="btn btn-primary">View Full Menu</a>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<!-- Quick Links -->
+<section class="quick-links">
+  <h2>Quick Actions</h2>
+  <div class="links-grid">
+    <% if (user) { %>
+      <a href="/menu" class="link-card">
+        <span class="icon">🍕</span>
+        <span class="text">Browse Menu</span>
+      </a>
+      <a href="/cart" class="link-card">
+        <span class="icon">🛒</span>
+        <span class="text">My Cart</span>
+      </a>
+      <a href="/orders" class="link-card">
+        <span class="icon">📦</span>
+        <span class="text">My Orders</span>
+      </a>
+      <a href="/complaints" class="link-card">
+        <span class="icon">💬</span>
+        <span class="text">Submit Complaint</span>
+      </a>
+      <% if (user.role === 'admin' || user.role === 'staff') { %>
+        <a href="/admin" class="link-card admin">
+          <span class="icon">🛡️</span>
+          <span class="text">Admin Panel</span>
+        </a>
+      <% } %>
+      <a href="/vulns" class="link-card">
+        <span class="icon">🐛</span>
+        <span class="text">Bug Tracker</span>
+      </a>
+    <% } else { %>
+      <a href="/auth/login" class="link-card">
+        <span class="icon">🔐</span>
+        <span class="text">Login</span>
+      </a>
+      <a href="/auth/register" class="link-card">
+        <span class="icon">✍️</span>
+        <span class="text">Register</span>
+      </a>
+      <a href="/menu" class="link-card">
+        <span class="icon">📖</span>
+        <span class="text">View Menu</span>
+      </a>
+    <% } %>
+  </div>
+</section>
+
+<style>
+.hero {
+  text-align: center;
+  padding: 60px 20px;
+  background: linear-gradient(135deg, var(--primary-red) 0%, var(--accent-yellow) 100%);
+  color: white;
+  margin-bottom: 40px;
+}
+
+.hero h1 {
+  font-size: 3em;
+  margin-bottom: 15px;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+}
+
+.hero p {
+  font-size: 1.3em;
+  margin-bottom: 20px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-top: 30px;
+}
+
+.btn {
+  display: inline-block;
+  padding: 12px 30px;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background: white;
+  color: var(--primary-red);
+}
+
+.btn-secondary {
+  background: var(--accent-yellow);
+  color: white;
+}
+
+.btn-outline {
+  background: transparent;
+  color: white;
+  border: 2px solid white;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.featured-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.featured-section h2 {
+  text-align: center;
+  color: var(--primary-red);
+  font-size: 2em;
+  margin-bottom: 30px;
+}
+
+.food-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 25px;
+  margin-bottom: 40px;
+}
+
+.food-item {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transition: transform 0.3s ease;
+}
+
+.food-item:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+}
+
+.food-item img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+}
+
+.food-item h3 {
+  margin: 15px;
+  color: var(--primary-red);
+  font-size: 1.2em;
+}
+
+.food-item .description {
+  margin: 0 15px;
+  color: #666;
+  font-size: 0.9em;
+  line-height: 1.4;
+}
+
+.food-item .price {
+  margin: 15px;
+  font-size: 1.3em;
+  font-weight: bold;
+  color: var(--accent-yellow);
+}
+
+.btn-add {
+  display: block;
+  width: calc(100% - 30px);
+  margin: 15px;
+  padding: 10px;
+  background: var(--accent-yellow);
+  color: white;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 6px;
+  font-weight: bold;
+  transition: background 0.3s ease;
+}
+
+.btn-add:hover {
+  background: var(--primary-red);
+}
+
+.quick-links {
+  background: #f8f9fa;
+  padding: 40px 20px;
+  margin-top: 40px;
+}
+
+.quick-links h2 {
+  text-align: center;
+  color: var(--primary-red);
+  margin-bottom: 30px;
+}
+
+.links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.link-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 25px 15px;
+  background: white;
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text-gray);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.link-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  background: var(--accent-yellow);
+  color: white;
+}
+
+.link-card .icon {
+  font-size: 2em;
+  margin-bottom: 10px;
+}
+
+.link-card .text {
+  font-weight: 600;
+  text-align: center;
+}
+
+.link-card.admin {
+  background: #fff3cd;
+}
+
+.no-items {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: #666;
+}
+
+@media (max-width: 768px) {
+  .hero h1 {
+    font-size: 2em;
+  }
+  
+  .hero-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .food-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+  }
+  
+  .links-grid {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+  }
+}
+</style>
 
 <%- include('partials/footer') %>
