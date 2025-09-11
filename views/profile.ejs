@@ -214,79 +214,197 @@ function uploadAvatar() {
   
   if (!file) return;
   
-  // VULNERABILITY: Client-side validation only - easily bypassed
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-  const maxSize = 5 * 1024 * 1024; // 5MB
-  
-  // Weak client-side check
-  if (!allowedTypes.includes(file.type)) {
-    // VULNERABILITY: Can be bypassed by changing MIME type
-    console.log('File type validation:', file.type);
-  }
-  
-  if (file.size > maxSize) {
-    // VULNERABILITY: Can be bypassed with custom headers
-    console.log('File size:', file.size);
-  }
+  // Show loading state
+  const uploadBtn = document.querySelector('.change-avatar-btn');
+  const originalText = uploadBtn.textContent;
+  uploadBtn.textContent = '⏳ Uploading...';
+  uploadBtn.disabled = true;
   
   const formData = new FormData();
   formData.append('avatar', file);
   
-  // VULNERABILITY: No CSRF token
+  // Clear any previous messages
+  const existingMessages = document.querySelectorAll('.upload-message');
+  existingMessages.forEach(msg => msg.remove());
+  
   fetch('/profile/upload-avatar', {
     method: 'POST',
-    body: formData,
-    // VULNERABILITY: Custom headers can bypass restrictions
-    headers: {
-      'X-Upload-Source': 'profile-page',
-      // Uncomment to bypass restrictions (for testing):
-      // 'X-Admin-Upload': 'true',
-      // 'X-Staff-Override': 'large-files',
-      // 'X-Keep-Original': 'true'
-    }
+    body: formData
   })
   .then(response => response.json())
   .then(data => {
+    // Reset button state
+    uploadBtn.textContent = originalText;
+    uploadBtn.disabled = false;
+    
     if (data.success) {
-      alert('✅ Avatar uploaded successfully!');
-      document.getElementById('currentAvatar').src = data.avatar_url;
-      
-      // VULNERABILITY: Log sensitive debug info
-      if (data.debug) {
-        console.log('Upload debug info:', data.debug);
+      // Success - update avatar and show success message
+      const avatarImg = document.getElementById('currentAvatar');
+      if (avatarImg) {
+        avatarImg.src = data.avatar_url + '?t=' + Date.now(); // Cache bust
+      } else {
+        // If no existing avatar, create one
+        const avatarWrapper = document.querySelector('.avatar-wrapper');
+        const placeholder = avatarWrapper.querySelector('.avatar-placeholder');
+        if (placeholder) {
+          placeholder.style.display = 'none';
+          const newImg = document.createElement('img');
+          newImg.id = 'currentAvatar';
+          newImg.src = data.avatar_url;
+          newImg.className = 'avatar-image';
+          newImg.alt = 'Profile Picture';
+          avatarWrapper.insertBefore(newImg, avatarWrapper.firstChild);
+        }
       }
+      
+      // Show success message
+      showUploadMessage('✅ Avatar uploaded successfully!', 'success');
+      
+      // Update session data if needed
+      if (window.location.pathname === '/profile') {
+        // Update any other avatar instances on the page
+        document.querySelectorAll('.profile-pic').forEach(pic => {
+          pic.src = data.avatar_url + '?t=' + Date.now();
+        });
+      }
+      
     } else {
-      alert('❌ Upload failed: ' + data.error);
+      // Error - show error message
+      showUploadMessage('❌ Upload failed: ' + data.error, 'error');
     }
   })
   .catch(error => {
+    // Reset button state
+    uploadBtn.textContent = originalText;
+    uploadBtn.disabled = false;
+    
     console.error('Upload error:', error);
-    alert('❌ Failed to upload avatar');
+    showUploadMessage('❌ Upload failed: Network error or server issue', 'error');
   });
 }
 
+function showUploadMessage(message, type) {
+  // Remove any existing messages
+  const existingMessages = document.querySelectorAll('.upload-message');
+  existingMessages.forEach(msg => msg.remove());
+  
+  // Create message element
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `upload-message ${type}`;
+  messageDiv.textContent = message;
+  
+  // Style the message
+  messageDiv.style.cssText = `
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    z-index: 1000;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transition: all 0.3s ease;
+    ${type === 'success' ? 
+      'background: #d4edda; color: #155724; border: 1px solid #c3e6cb;' : 
+      'background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;'
+    }
+  `;
+  
+  // Add to page
+  document.body.appendChild(messageDiv);
+  
+  // Auto-remove after 5 seconds
+  setTimeout(() => {
+    if (messageDiv.parentNode) {
+      messageDiv.style.opacity = '0';
+      messageDiv.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        if (messageDiv.parentNode) {
+          messageDiv.parentNode.removeChild(messageDiv);
+        }
+      }, 300);
+    }
+  }, 5000);
+  
+  // Click to dismiss
+  messageDiv.addEventListener('click', () => {
+    if (messageDiv.parentNode) {
+      messageDiv.style.opacity = '0';
+      messageDiv.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        if (messageDiv.parentNode) {
+          messageDiv.parentNode.removeChild(messageDiv);
+        }
+      }, 300);
+    }
+  });
+}
+
+// FIXED: Delete avatar function with better feedback
 function deleteAvatar() {
   if (!confirm('Are you sure you want to delete your profile picture?')) return;
   
-  // VULNERABILITY: No CSRF protection
-  fetch('/profile/avatar', {
-    method: 'DELETE',
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      alert('✅ Avatar deleted successfully');
-      location.reload();
-    } else {
-      alert('❌ Failed to delete avatar');
-    }
-  })
-  .catch(error => {
-    console.error('Delete error:', error);
-  });
+  // Show loading state
+  const deleteBtn = document.querySelector('.delete-avatar-btn');
+  if (deleteBtn) {
+    const originalText = deleteBtn.textContent;
+    deleteBtn.textContent = '⏳ Deleting...';
+    deleteBtn.disabled = true;
+    
+    fetch('/profile/avatar', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      deleteBtn.textContent = originalText;
+      deleteBtn.disabled = false;
+      
+      if (data.success) {
+        showUploadMessage('✅ Avatar deleted successfully', 'success');
+        
+        // Update UI - replace image with placeholder
+        const avatarImg = document.getElementById('currentAvatar');
+        const avatarWrapper = document.querySelector('.avatar-wrapper');
+        
+        if (avatarImg && avatarWrapper) {
+          avatarImg.remove();
+          
+          // Show placeholder
+          const placeholder = avatarWrapper.querySelector('.avatar-placeholder');
+          if (placeholder) {
+            placeholder.style.display = 'flex';
+          } else {
+            // Create new placeholder
+            const newPlaceholder = document.createElement('div');
+            newPlaceholder.className = 'avatar-placeholder';
+            newPlaceholder.innerHTML = '<span>U</span>'; // Generic placeholder
+            avatarWrapper.insertBefore(newPlaceholder, avatarWrapper.firstChild);
+          }
+          
+          // Hide delete button
+          deleteBtn.style.display = 'none';
+        }
+        
+        // Update other avatar instances
+        document.querySelectorAll('.profile-pic').forEach(pic => {
+          pic.src = '/public/images/default-avatar.png';
+        });
+        
+      } else {
+        showUploadMessage('❌ Failed to delete avatar: ' + data.error, 'error');
+      }
+    })
+    .catch(error => {
+      deleteBtn.textContent = originalText;
+      deleteBtn.disabled = false;
+      console.error('Delete error:', error);
+      showUploadMessage('❌ Failed to delete avatar: Network error', 'error');
+    });
+  }
 }
 
 function toggleEditProfile() {

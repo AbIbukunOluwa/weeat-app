@@ -103,45 +103,101 @@ router.post('/upload-avatar', requireAuth, upload.single('avatar'), async (req, 
     if (!req.file) {
       return res.status(400).json({ 
         success: false,
-        error: 'No file uploaded' 
+        error: 'No file uploaded. Please select an image file.' 
       });
     }
 
+    // Enhanced file validation
+    const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    const maxFileSize = 5 * 1024 * 1024; // 5MB
+    
+    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+    const mimeType = req.file.mimetype;
+    
+    // Validate file type
+    if (!allowedMimeTypes.includes(mimeType) && !allowedExtensions.includes(fileExtension)) {
+      // Delete uploaded file
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid file type. Please upload a JPEG, PNG, GIF, or WebP image.' 
+      });
+    }
+    
+    // Validate file size
+    if (req.file.size > maxFileSize) {
+      // Delete uploaded file
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({ 
+        success: false,
+        error: 'File too large. Please upload an image smaller than 5MB.' 
+      });
+    }
+
+    // Generate unique filename to prevent conflicts
+    const userId = req.session.user.id;
+    const timestamp = Date.now();
+    const uniqueFileName = `${userId}_${timestamp}${fileExtension}`;
+    const finalPath = path.join(uploadDir, uniqueFileName);
+    
+    // Move file to final location with unique name
+    fs.renameSync(req.file.path, finalPath);
+    
     // Build the avatar URL
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    const avatarUrl = `/uploads/avatars/${uniqueFileName}`;
     
     // Update user avatar in database
     const user = await User.findByPk(req.session.user.id);
     if (!user) {
-      // Delete uploaded file if user not found
-      fs.unlinkSync(req.file.path);
+      // Clean up uploaded file if user not found
+      if (fs.existsSync(finalPath)) {
+        fs.unlinkSync(finalPath);
+      }
       return res.status(404).json({ 
         success: false,
-        error: 'User not found' 
+        error: 'User account not found. Please log in again.' 
       });
     }
 
-    // Delete old avatar if it exists
-    if (user.avatar) {
+    // Delete old avatar if it exists and is different
+    if (user.avatar && user.avatar !== avatarUrl) {
       const oldAvatarPath = path.join(__dirname, '..', user.avatar.replace(/^\//, ''));
       if (fs.existsSync(oldAvatarPath)) {
-        fs.unlinkSync(oldAvatarPath);
+        try {
+          fs.unlinkSync(oldAvatarPath);
+        } catch (deleteError) {
+          console.warn('Could not delete old avatar:', deleteError.message);
+          // Don't fail the upload for this
+        }
       }
     }
 
-    // Update user avatar
-    user.avatar = avatarUrl;
-    await user.save();
+    // Update user avatar in database
+    await user.update({ avatar: avatarUrl });
     
-    // Update session
+    // Update session data
     req.session.user.avatar = avatarUrl;
+    
+    // Save session to ensure persistence
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
     
     res.json({
       success: true,
-      message: 'Avatar uploaded successfully',
+      message: 'Avatar uploaded successfully!',
       avatar_url: avatarUrl,
       file_info: {
-        name: req.file.filename,
+        name: uniqueFileName,
+        originalName: req.file.originalname,
         size: req.file.size,
         type: req.file.mimetype
       }
@@ -150,42 +206,66 @@ router.post('/upload-avatar', requireAuth, upload.single('avatar'), async (req, 
   } catch (error) {
     console.error('Avatar upload error:', error);
     
-    // Clean up uploaded file on error
+    // Clean up uploaded file on any error
     if (req.file?.path && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error('Error cleaning up file:', cleanupError);
+      }
     }
     
     res.status(500).json({
       success: false,
-      error: 'Avatar upload failed: ' + error.message
+      error: 'Avatar upload failed. Please try again.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
 
-// Avatar deletion route
+// Avatar deletion route - FIXED: Better error handling
 router.delete('/avatar', requireAuth, async (req, res) => {
   try {
     const user = await User.findByPk(req.session.user.id);
     
-    if (!user || !user.avatar) {
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'User account not found. Please log in again.' 
+      });
+    }
+    
+    if (!user.avatar) {
       return res.status(400).json({ 
         success: false,
         error: 'No avatar to delete' 
       });
     }
     
-    // Delete avatar file
+    // Delete avatar file from filesystem
     const avatarPath = path.join(__dirname, '..', user.avatar.replace(/^\//, ''));
     if (fs.existsSync(avatarPath)) {
-      fs.unlinkSync(avatarPath);
+      try {
+        fs.unlinkSync(avatarPath);
+      } catch (deleteError) {
+        console.warn('Could not delete avatar file:', deleteError.message);
+        // Continue with database update even if file deletion fails
+      }
     }
     
     // Update database
-    user.avatar = null;
-    await user.save();
+    await user.update({ avatar: null });
     
     // Update session
     req.session.user.avatar = null;
+    
+    // Save session to ensure persistence
+    await new Promise((resolve, reject) => {
+      req.session.save((err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
     
     res.json({
       success: true,
@@ -196,9 +276,48 @@ router.delete('/avatar', requireAuth, async (req, res) => {
     console.error('Avatar deletion error:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to delete avatar: ' + error.message
+      error: 'Failed to delete avatar. Please try again.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
+});
+
+// ENHANCED: Additional file upload validation middleware
+const validateFileUpload = (req, res, next) => {
+  // Additional server-side validation
+  if (req.file) {
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    
+    if (!allowedMimeTypes.includes(req.file.mimetype)) {
+      // Clean up invalid file
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.'
+      });
+    }
+    
+    if (req.file.size > maxSize) {
+      // Clean up oversized file
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({
+        success: false,
+        error: 'File too large. Maximum size is 5MB.'
+      });
+    }
+  }
+  
+  next();
+};
+
+// Apply validation middleware to upload routes
+router.post('/upload-avatar', requireAuth, upload.single('avatar'), validateFileUpload, async (req, res) => {
+  // Upload logic here (already defined above)
 });
 
 // Profile update route

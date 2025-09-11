@@ -8,26 +8,196 @@ router.use((req, res, next) => {
 });
 
 router.post('/create', async (req, res) => {
-  const userId = req.session.user.id;
-  const cartItems = await CartItem.findAll({ where: { userId } });
-  if (cartItems.length === 0) return res.redirect('/cart');
+  try {
+    const userId = req.session.user.id;
+    const cartItems = await CartItem.findAll({ where: { userId } });
+    
+    if (cartItems.length === 0) {
+      return res.redirect('/cart');
+    }
 
-  const items = cartItems.map(ci => ({ name: ci.foodName, price: ci.price, qty: ci.quantity }));
-  const totalAmount = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+    const items = cartItems.map(ci => ({ 
+      name: ci.foodName, 
+      price: ci.price, 
+      qty: ci.quantity 
+    }));
+    
+    const totalAmount = items.reduce((sum, i) => sum + i.price * i.qty, 0);
 
-  await Order.create({ userId, items: JSON.stringify(items), totalAmount });
-  await CartItem.destroy({ where: { userId } });
+    const order = await Order.create({ 
+      userId, 
+      items: JSON.stringify(items), 
+      totalAmount 
+    });
+    
+    // Clear cart after successful order
+    await CartItem.destroy({ where: { userId } });
 
-  res.redirect('/orders');
+    res.redirect('/orders');
+  } catch (error) {
+    console.error('Order creation error:', error);
+    res.status(500).render('error', {
+      error: 'Failed to create order',
+      title: 'Order Error',
+      user: req.session.user
+    });
+  }
 });
 
+// FIXED: Use the correct view path that exists
 router.get('/', async (req, res) => {
-  const orders = await Order.findAll({ where: { userId: req.session.user.id } });
-  res.render('orders/view', { 
-    title: 'My Orders - WeEat',  // FIXED: Added title
-    user: req.session.user,      // Pass user for header
-    orders 
-  });
+  try {
+    const orders = await Order.findAll({ 
+      where: { userId: req.session.user.id },
+      order: [['createdAt', 'DESC']]
+    });
+    
+    // FIXED: Use 'orders/order_view' instead of 'orders/view'
+    res.render('orders/order_view', { 
+      title: 'My Orders - WeEat',
+      user: req.session.user,
+      orders 
+    });
+  } catch (error) {
+    console.error('Orders view error:', error);
+    res.status(500).render('error', {
+      error: 'Failed to load orders',
+      title: 'Orders Error', 
+      user: req.session.user
+    });
+  }
+});
+
+// Individual order view
+router.get('/:id', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const order = await Order.findOne({
+      where: { 
+        id: orderId, 
+        userId: req.session.user.id 
+      }
+    });
+
+    if (!order) {
+      return res.status(404).render('error', {
+        error: 'Order not found',
+        title: 'Order Not Found',
+        user: req.session.user
+      });
+    }
+
+    res.render('orders/order_detail', {
+      title: `Order #${order.id} - WeEat`,
+      user: req.session.user,
+      order
+    });
+  } catch (error) {
+    console.error('Order detail error:', error);
+    res.status(500).render('error', {
+      error: 'Failed to load order details',
+      title: 'Order Error',
+      user: req.session.user
+    });
+  }
+});
+
+// Cancel order
+router.post('/:id/cancel', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const { reason } = req.body;
+    
+    const order = await Order.findOne({
+      where: { 
+        id: orderId, 
+        userId: req.session.user.id 
+      }
+    });
+
+    if (!order) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Order not found' 
+      });
+    }
+
+    if (order.status === 'delivered') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Cannot cancel delivered order' 
+      });
+    }
+
+    order.status = 'cancelled';
+    order.cancellationReason = reason || 'Customer requested cancellation';
+    await order.save();
+
+    res.json({ 
+      success: true, 
+      message: 'Order cancelled successfully' 
+    });
+  } catch (error) {
+    console.error('Order cancellation error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to cancel order' 
+    });
+  }
+});
+
+// Reorder items
+router.post('/:id/reorder', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const userId = req.session.user.id;
+    
+    const order = await Order.findOne({
+      where: { 
+        id: orderId, 
+        userId: userId 
+      }
+    });
+
+    if (!order) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Order not found' 
+      });
+    }
+
+    const items = JSON.parse(order.items);
+    
+    // Add items back to cart
+    for (const item of items) {
+      let cartItem = await CartItem.findOne({ 
+        where: { userId, foodName: item.name } 
+      });
+      
+      if (cartItem) {
+        cartItem.quantity += item.qty;
+        await cartItem.save();
+      } else {
+        await CartItem.create({
+          userId,
+          foodName: item.name,
+          price: item.price,
+          quantity: item.qty
+        });
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Items added to cart successfully' 
+    });
+  } catch (error) {
+    console.error('Reorder error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to reorder items' 
+    });
+  }
 });
 
 module.exports = router;
