@@ -1,4 +1,4 @@
-// routes/complaints.js - Fixed version with proper field handling
+// routes/complaints.js - FIXED VERSION
 const express = require('express');
 const router = express.Router();
 const { Complaint, User } = require('../models');
@@ -73,38 +73,58 @@ router.get('/', requireAuth, async (req, res) => {
   }
 });
 
-// Submit complaint with file upload
+// Submit complaint with file upload - FIXED VERSION
 router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
   try {
-    // Get form data
+    // FIXED: Get form data with proper field names
     const { orderId, details, category, urgent, contactMethod } = req.body;
     
-    // Validate required fields
+    // FIXED: Enhanced validation and debugging
+    console.log('Complaint submission data:', {
+      orderId: orderId,
+      details: details,
+      category: category,
+      urgent: urgent,
+      contactMethod: contactMethod,
+      hasFile: !!req.file,
+      userId: req.session.user.id
+    });
+    
+    // FIXED: Validate required fields with better error messages
     if (!details || details.trim() === '') {
       if (req.file) {
         // Clean up uploaded file if validation fails
         fs.unlinkSync(req.file.path);
       }
       return res.status(400).render('error', {
-        error: 'Complaint details are required',
+        error: 'Complaint details are required. Please describe your issue.',
         title: 'Validation Error',
         user: req.session.user
       });
     }
     
-    // Prepare complaint data
+    // FIXED: Prepare complaint data with proper field mapping
     const complaintData = {
       userId: req.session.user.id,
-      orderId: orderId || null, // Make orderId optional
-      details: details.trim(),
+      orderId: orderId && orderId.trim() !== '' ? orderId.trim() : null, // FIXED: Handle empty orderId properly
+      details: details.trim(), // FIXED: Ensure details is not null or empty
       category: category || 'other',
-      urgent: urgent === 'true',
+      urgent: urgent === 'true' || urgent === true,
       contactMethod: contactMethod || 'email',
       photo: req.file ? req.file.filename : null
     };
     
+    // FIXED: Additional validation before database save
+    if (!complaintData.details) {
+      throw new Error('Details cannot be empty after processing');
+    }
+    
+    console.log('Final complaint data before save:', complaintData);
+    
     // Create complaint in database
-    await Complaint.create(complaintData);
+    const newComplaint = await Complaint.create(complaintData);
+    
+    console.log('Complaint created successfully with ID:', newComplaint.id);
     
     // Redirect back to complaints page with success
     res.redirect('/complaints?success=true');
@@ -114,14 +134,30 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
     
     // Clean up uploaded file if there was an error
     if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error('File cleanup error:', cleanupError);
+      }
+    }
+    
+    // FIXED: Better error handling with specific error messages
+    let errorMessage = 'Failed to submit complaint. Please try again.';
+    
+    if (error.name === 'SequelizeValidationError') {
+      const validationErrors = error.errors.map(err => err.message);
+      errorMessage = `Validation error: ${validationErrors.join(', ')}`;
+    } else if (error.message.includes('orderId')) {
+      errorMessage = 'Order ID validation failed. Please check the order ID format.';
+    } else if (error.message.includes('details')) {
+      errorMessage = 'Complaint details are required and cannot be empty.';
     }
     
     res.status(500).render('error', {
-      error: 'Failed to submit complaint. Please try again.',
+      error: errorMessage,
       title: 'Submission Error',
       user: req.session.user,
-      details: error.message
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });

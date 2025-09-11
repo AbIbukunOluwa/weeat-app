@@ -20,6 +20,7 @@ const menuRoutes = require('./routes/menu');
 const apiRoutes = require('./routes/api');
 const aboutRoutes = require('./routes/about');
 const uploadRoutes = require('./routes/upload');
+const uuidDemoRoutes = require('./routes/uuid-demo');
 
 // Admin and Staff routes
 const adminRoutes = require('./routes/admin');
@@ -215,6 +216,7 @@ app.use('/vulns', vulnsRoutes);
 app.use('/profile', profileRoutes);
 app.use('/cart', cartRoutes);
 app.use('/menu', menuRoutes);
+app.use('/uuid-demo', uuidDemoRoutes);
 
 // Advanced vulnerability routes
 app.use('/reviews', require('./routes/reviews'));
@@ -293,6 +295,39 @@ app.get('/proxy/image', async (req, res) => {
       details: req.headers['x-proxy-debug'] === 'true' ? err.message : undefined,
       url: req.headers['x-proxy-debug'] === 'true' ? req.query.url : undefined
     });
+  }
+});
+
+app.get('/api/user/:identifier', async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    const user = await User.findByIdentifier(identifier);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // VULNERABILITY: Different response based on identifier type
+    const isUuid = identifier.length === 36 && identifier.includes('-');
+    
+    let response = {
+      identifier: identifier,
+      identifierType: isUuid ? 'uuid' : 'id',
+      username: user.username,
+      role: user.role
+    };
+    
+    // VULNERABILITY: More info for UUID-based requests
+    if (isUuid) {
+      response.uuid = user.uuid;
+      response.active = user.active;
+      response.lastLogin = user.lastLogin;
+    }
+    
+    res.json(response);
+    
+  } catch (err) {
+    res.status(500).json({ error: 'User lookup failed' });
   }
 });
 
@@ -434,6 +469,50 @@ app.get('/api/v1/system/status', (req, res) => {
         user: process.env.DB_USER
       } : undefined
     }
+  });
+});
+
+app.get('/api/order/:identifier', async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    const order = await Order.findByIdentifier(identifier);
+    
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    // VULNERABILITY: No authorization check
+    res.json(order.getOrderSummary());
+    
+  } catch (err) {
+    res.status(500).json({ error: 'Order lookup failed' });
+  }
+});
+
+app.get('/api/migration-status', (req, res) => {
+  res.json({
+    status: 'partial',
+    message: 'UUID migration in progress',
+    features: {
+      uuidSupport: true,
+      legacyIdSupport: true,
+      mixedMode: true
+    },
+    endpoints: {
+      userLookup: '/uuid-demo/api/user-lookup/:uuid',
+      orderDetails: '/uuid-demo/api/order-details/:orderUuid',
+      uuidGeneration: '/uuid-demo/api/generate-test-uuid',
+      bulkValidation: '/uuid-demo/api/validate-uuids',
+      accountRecovery: '/uuid-demo/api/account-recovery',
+      statistics: '/uuid-demo/api/uuid-stats'
+    },
+    vulnerabilities: [
+      'UUID enumeration via timing attacks',
+      'Predictable UUID generation patterns',
+      'Information disclosure via UUID-based lookups',
+      'Weak account recovery using UUID patterns',
+      'Bulk UUID validation without rate limiting'
+    ]
   });
 });
 
