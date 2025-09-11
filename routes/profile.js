@@ -13,6 +13,39 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// ENHANCED: Additional file upload validation middleware - MOVED TO TOP
+const validateFileUpload = (req, res, next) => {
+  // Additional server-side validation
+  if (req.file) {
+    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    
+    if (!allowedMimeTypes.includes(req.file.mimetype)) {
+      // Clean up invalid file
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.'
+      });
+    }
+    
+    if (req.file.size > maxSize) {
+      // Clean up oversized file
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(400).json({
+        success: false,
+        error: 'File too large. Maximum size is 5MB.'
+      });
+    }
+  }
+  
+  next();
+};
+
 // Multer configuration
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -288,44 +321,6 @@ router.delete('/avatar', requireAuth, async (req, res) => {
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
-});
-
-// ENHANCED: Additional file upload validation middleware
-const validateFileUpload = (req, res, next) => {
-  // Additional server-side validation
-  if (req.file) {
-    const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    
-    if (!allowedMimeTypes.includes(req.file.mimetype)) {
-      // Clean up invalid file
-      if (fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid file type. Only JPEG, PNG, GIF, and WebP images are allowed.'
-      });
-    }
-    
-    if (req.file.size > maxSize) {
-      // Clean up oversized file
-      if (fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
-      return res.status(400).json({
-        success: false,
-        error: 'File too large. Maximum size is 5MB.'
-      });
-    }
-  }
-  
-  next();
-};
-
-// Apply validation middleware to upload routes
-router.post('/upload-avatar', requireAuth, upload.single('avatar'), validateFileUpload, async (req, res) => {
-  // Upload logic here (already defined above)
 });
 
 // Profile update route

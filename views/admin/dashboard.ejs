@@ -2,21 +2,39 @@
 
 <div class="admin-dashboard">
   <div class="dashboard-header">
-    <h1>🛡️ WeEat Administration Dashboard</h1>
+    <div class="header-content">
+      <h1>🛡️ Admin Control Center</h1>
+      <p class="subtitle">WeEat Administration & Security Dashboard</p>
+    </div>
     <div class="admin-info">
-      <span class="admin-badge">Admin: <%= user.username %></span>
-      <span class="timestamp">Last Login: <%= new Date().toLocaleString() %></span>
+      <div class="admin-badge">
+        <span class="badge-icon">👤</span>
+        <div class="badge-details">
+          <span class="admin-name"><%= user.username %></span>
+          <span class="admin-role">System Administrator</span>
+        </div>
+      </div>
+      <div class="session-info">
+        <span class="session-time">Session: <%= new Date().toLocaleTimeString() %></span>
+        <span class="last-login">IP: <%= typeof ip !== 'undefined' ? ip : '127.0.0.1' %></span>
+      </div>
     </div>
   </div>
-  
-  <!-- Stats Overview -->
+
+  <!-- Quick Stats Grid -->
   <div class="stats-grid">
     <div class="stat-card users">
       <div class="stat-icon">👥</div>
       <div class="stat-content">
         <h3>Total Users</h3>
         <p class="stat-number"><%= stats.totalUsers %></p>
-        <span class="stat-change positive">↑ +12 this week</span>
+        <div class="stat-trend positive">
+          <span class="trend-icon">↑</span>
+          <span class="trend-text">+12% this week</span>
+        </div>
+      </div>
+      <div class="stat-actions">
+        <a href="/admin/users" class="stat-link">Manage Users →</a>
       </div>
     </div>
     
@@ -25,16 +43,28 @@
       <div class="stat-content">
         <h3>Active Orders</h3>
         <p class="stat-number"><%= stats.totalOrders %></p>
-        <span class="stat-change positive">↗ +5 today</span>
+        <div class="stat-trend positive">
+          <span class="trend-icon">↑</span>
+          <span class="trend-text">+23 today</span>
+        </div>
+      </div>
+      <div class="stat-actions">
+        <a href="/admin/orders" class="stat-link">View Orders →</a>
       </div>
     </div>
     
     <div class="stat-card complaints">
-      <div class="stat-icon">💬</div>
+      <div class="stat-icon">⚠️</div>
       <div class="stat-content">
-        <h3>Open Complaints</h3>
+        <h3>Open Issues</h3>
         <p class="stat-number"><%= stats.totalComplaints %></p>
-        <span class="stat-change critical">⚠ Needs attention</span>
+        <div class="stat-trend critical">
+          <span class="trend-icon">!</span>
+          <span class="trend-text">Needs attention</span>
+        </div>
+      </div>
+      <div class="stat-actions">
+        <a href="/complaints" class="stat-link">Review Issues →</a>
       </div>
     </div>
     
@@ -42,216 +72,758 @@
       <div class="stat-icon">💰</div>
       <div class="stat-content">
         <h3>Revenue (MTD)</h3>
-        <p class="stat-number">$24,567</p>
-        <span class="stat-change positive">↑ +18.5%</span>
+        <p class="stat-number">$<%= (Math.random() * 50000 + 20000).toFixed(0) %></p>
+        <div class="stat-trend positive">
+          <span class="trend-icon">↑</span>
+          <span class="trend-text">+18.5% vs last month</span>
+        </div>
+      </div>
+      <div class="stat-actions">
+        <a href="/admin/reports" class="stat-link">Financial Report →</a>
       </div>
     </div>
   </div>
 
-  <div class="tool-section">
-    <h3>🗄️ Database & User Management</h3>
+  <!-- Admin Tools Section -->
+  <div class="admin-tools">
+    <h2>🔧 Administrative Tools</h2>
     
-    <!-- Enhanced User Search -->
-    <div class="user-search-section">
-      <h4>👤 User Search & Management</h4>
-      <form method="GET" action="/admin/users" class="advanced-search-form">
-        <div class="search-grid">
-          <div class="search-field">
-            <label for="search">Search Users:</label>
-            <input type="text" name="search" id="search" placeholder="Username or email..." 
-                   value="<%= typeof search !== 'undefined' ? search : '' %>" class="search-input">
-          </div>
-          
-          <div class="search-field">
-            <label for="filter_role">Filter by Role:</label>
-            <select name="filter_role" id="filter_role" class="search-select">
-              <option value="">All Roles</option>
-              <option value="customer">Customer</option>
-              <option value="staff">Staff</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
-          
-          <div class="search-field">
-            <label for="sort">Sort by:</label>
-            <select name="sort" id="sort" class="search-select">
-              <option value="id">User ID</option>
-              <option value="username">Username</option>
-              <option value="email">Email</option>
-              <option value="createdAt">Date Created</option>
-            </select>
-          </div>
-          
-          <div class="search-actions">
-            <button type="submit" class="btn-search">🔍 Search Users</button>
-            <button type="button" onclick="clearSearch()" class="btn-clear">Clear</button>
+    <div class="tools-grid">
+      <!-- User Management -->
+      <div class="tool-card">
+        <div class="tool-header">
+          <span class="tool-icon">👤</span>
+          <h3>User Management</h3>
+        </div>
+        <div class="tool-content">
+          <p>Manage user accounts, roles, and permissions</p>
+          <div class="tool-actions">
+            <a href="/admin/users" class="btn btn-primary">View All Users</a>
+            <button onclick="exportUsers()" class="btn btn-secondary">Export Users</button>
+            <button onclick="bulkActions()" class="btn btn-warning">Bulk Actions</button>
           </div>
         </div>
-      </form>
-    </div>
-  
-    <!-- Quick Actions -->
-    <div class="admin-quick-actions">
-      <button onclick="exportUsers()" class="action-btn">📊 Export Users</button>
-      <button onclick="generateReport()" class="action-btn">📈 Generate Report</button>
-      <button onclick="systemHealth()" class="action-btn">🔧 System Health</button>
+      </div>
+
+      <!-- Security Center -->
+      <div class="tool-card">
+        <div class="tool-header">
+          <span class="tool-icon">🔒</span>
+          <h3>Security Center</h3>
+        </div>
+        <div class="tool-content">
+          <p>Monitor security events and system vulnerabilities</p>
+          <div class="tool-actions">
+            <button onclick="viewSecurityLogs()" class="btn btn-primary">Security Logs</button>
+            <button onclick="runSecurityScan()" class="btn btn-danger">Run Scan</button>
+            <a href="/vulns" class="btn btn-secondary">Vulnerability Tracker</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Database Operations -->
+      <div class="tool-card">
+        <div class="tool-header">
+          <span class="tool-icon">🗄️</span>
+          <h3>Database Operations</h3>
+        </div>
+        <div class="tool-content">
+          <p>Execute queries and manage database operations</p>
+          <div class="tool-actions">
+            <button onclick="openQueryInterface()" class="btn btn-primary">SQL Console</button>
+            <button onclick="backupDatabase()" class="btn btn-secondary">Backup DB</button>
+            <button onclick="viewDbStats()" class="btn btn-info">DB Stats</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Configuration -->
+      <div class="tool-card">
+        <div class="tool-header">
+          <span class="tool-icon">⚙️</span>
+          <h3>System Configuration</h3>
+        </div>
+        <div class="tool-content">
+          <p>Configure system settings and environment variables</p>
+          <div class="tool-actions">
+            <button onclick="viewConfig()" class="btn btn-primary">View Config</button>
+            <button onclick="clearCache()" class="btn btn-warning">Clear Cache</button>
+            <button onclick="restartServices()" class="btn btn-danger">Restart Services</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-  
+
+  <!-- System Information (Conditional) -->
+  <% if (systemInfo) { %>
+  <div class="system-info-section">
+    <h2>📊 System Information</h2>
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="info-label">Node Version:</span>
+        <span class="info-value"><%= systemInfo.nodeVersion %></span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Platform:</span>
+        <span class="info-value"><%= systemInfo.platform %></span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Uptime:</span>
+        <span class="info-value"><%= systemInfo.uptime %> hours</span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Memory Usage:</span>
+        <span class="info-value"><%= Math.round(systemInfo.memoryUsage.heapUsed / 1024 / 1024) %> MB</span>
+      </div>
+      
+      <% if (systemInfo.database) { %>
+      <div class="info-item">
+        <span class="info-label">DB Host:</span>
+        <span class="info-value"><%= systemInfo.database.host %>:<%= systemInfo.database.port %></span>
+      </div>
+      <div class="info-item">
+        <span class="info-label">Database:</span>
+        <span class="info-value"><%= systemInfo.database.name %></span>
+      </div>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+
+  <!-- Recent Activity Log -->
+  <div class="activity-section">
+    <h2>📋 Recent Admin Activity</h2>
+    <div class="activity-log">
+      <div class="activity-item">
+        <span class="activity-time">2 min ago</span>
+        <span class="activity-user">admin</span>
+        <span class="activity-action">Modified user role for alice@example.com</span>
+      </div>
+      <div class="activity-item">
+        <span class="activity-time">15 min ago</span>
+        <span class="activity-user">diana</span>
+        <span class="activity-action">Exported user database</span>
+      </div>
+      <div class="activity-item">
+        <span class="activity-time">1 hour ago</span>
+        <span class="activity-user">admin</span>
+        <span class="activity-action">Executed SQL query on orders table</span>
+      </div>
+      <div class="activity-item">
+        <span class="activity-time">3 hours ago</span>
+        <span class="activity-user">charlie</span>
+        <span class="activity-action">Resolved 5 customer complaints</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions Bar -->
+  <div class="quick-actions-bar">
+    <h3>⚡ Quick Actions</h3>
+    <div class="action-buttons">
+      <button onclick="emergencyShutdown()" class="btn btn-danger">🚨 Emergency Shutdown</button>
+      <button onclick="maintenanceMode()" class="btn btn-warning">🔧 Maintenance Mode</button>
+      <button onclick="clearAllSessions()" class="btn btn-warning">🔑 Clear All Sessions</button>
+      <button onclick="generateReport()" class="btn btn-info">📊 Generate Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- SQL Console Modal -->
+<div id="sqlConsole" class="modal" style="display: none;">
+  <div class="modal-content large">
+    <span class="close" onclick="closeSQLConsole()">&times;</span>
+    <h2>🗄️ SQL Console</h2>
+    <div class="console-warning">
+      ⚠️ WARNING: Direct SQL execution. Use with caution!
+    </div>
+    <textarea id="sqlQuery" placeholder="Enter SQL query..." rows="10"></textarea>
+    <div class="console-actions">
+      <button onclick="executeSQLQuery()" class="btn btn-primary">Execute Query</button>
+      <button onclick="clearSQLConsole()" class="btn btn-secondary">Clear</button>
+    </div>
+    <div id="sqlResults"></div>
+  </div>
+</div>
 
 <style>
-  .user-search-section {
-    background: #f8f9fa;
-    padding: 25px;
-    border-radius: 12px;
-    margin: 20px 0;
-    border: 1px solid #e9ecef;
+.admin-dashboard {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+
+.dashboard-header {
+  background: linear-gradient(135deg, #1e3c72, #2a5298);
+  color: white;
+  padding: 40px;
+  border-radius: 20px;
+  margin-bottom: 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+.header-content h1 {
+  margin: 0;
+  font-size: 2.5em;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.subtitle {
+  margin: 10px 0 0 0;
+  opacity: 0.9;
+  font-size: 1.1em;
+}
+
+.admin-badge {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: rgba(255,255,255,0.1);
+  padding: 15px 25px;
+  border-radius: 50px;
+  backdrop-filter: blur(10px);
+}
+
+.badge-icon {
+  font-size: 2em;
+}
+
+.badge-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-name {
+  font-weight: bold;
+  font-size: 1.1em;
+}
+
+.admin-role {
+  opacity: 0.9;
+  font-size: 0.9em;
+}
+
+.session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 15px;
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 25px;
+  margin-bottom: 40px;
+}
+
+.stat-card {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+  transition: all 0.3s ease;
+  border-top: 4px solid;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+.stat-card.users { border-top-color: #4CAF50; }
+.stat-card.orders { border-top-color: #2196F3; }
+.stat-card.complaints { border-top-color: #FF9800; }
+.stat-card.revenue { border-top-color: #9C27B0; }
+
+.stat-icon {
+  font-size: 3em;
+  margin-bottom: 15px;
+}
+
+.stat-content h3 {
+  color: #666;
+  font-size: 0.95em;
+  margin: 0 0 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.stat-number {
+  font-size: 2.5em;
+  font-weight: bold;
+  color: #333;
+  margin: 0;
+}
+
+.stat-trend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 15px;
+  padding: 8px 12px;
+  background: #f0f9ff;
+  border-radius: 20px;
+  font-size: 0.9em;
+}
+
+.stat-trend.positive { background: #f0fdf4; color: #15803d; }
+.stat-trend.critical { background: #fef2f2; color: #dc2626; }
+
+.trend-icon {
+  font-weight: bold;
+}
+
+.stat-actions {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.stat-link {
+  color: #2196F3;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95em;
+}
+
+.admin-tools {
+  margin-bottom: 40px;
+}
+
+.admin-tools h2 {
+  color: #333;
+  margin-bottom: 25px;
+  font-size: 1.8em;
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 25px;
+}
+
+.tool-card {
+  background: white;
+  border-radius: 15px;
+  padding: 25px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+}
+
+.tool-header {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.tool-icon {
+  font-size: 2em;
+}
+
+.tool-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.tool-content p {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.tool-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 0.9em;
+}
+
+.btn-primary { background: #2196F3; color: white; }
+.btn-secondary { background: #6c757d; color: white; }
+.btn-warning { background: #FF9800; color: white; }
+.btn-danger { background: #dc2626; color: white; }
+.btn-info { background: #17a2b8; color: white; }
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+.system-info-section {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  margin-bottom: 40px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+}
+
+.system-info-section h2 {
+  color: #333;
+  margin-bottom: 25px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.info-label {
+  font-weight: 600;
+  color: #666;
+}
+
+.info-value {
+  color: #333;
+  font-family: monospace;
+}
+
+.activity-section {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  margin-bottom: 40px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+}
+
+.activity-log {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.activity-item {
+  display: grid;
+  grid-template-columns: 100px 150px 1fr;
+  gap: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  align-items: center;
+}
+
+.activity-time {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.activity-user {
+  font-weight: 600;
+  color: #2196F3;
+}
+
+.activity-action {
+  color: #333;
+}
+
+.quick-actions-bar {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.quick-actions-bar h3 {
+  margin: 0 0 20px 0;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.modal {
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-content.large {
+  max-width: 900px;
+}
+
+.close {
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #999;
+}
+
+.close:hover {
+  color: #333;
+}
+
+.console-warning {
+  background: #fff3cd;
+  border: 1px solid #ffc107;
+  padding: 15px;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+#sqlQuery {
+  width: 100%;
+  padding: 15px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.console-actions {
+  display: flex;
+  gap: 15px;
+  margin: 20px 0;
+}
+
+#sqlResults {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 20px;
+  font-family: monospace;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .dashboard-header {
+    flex-direction: column;
+    gap: 20px;
   }
   
-  .user-search-section h4 {
-    color: var(--primary-red);
-    margin: 0 0 20px 0;
-    font-size: 1.2em;
+  .stats-grid,
+  .tools-grid,
+  .info-grid {
+    grid-template-columns: 1fr;
   }
   
-  .search-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr auto;
-    gap: 15px;
-    align-items: end;
+  .activity-item {
+    grid-template-columns: 1fr;
+    gap: 5px;
   }
   
-  .search-field {
-    display: flex;
+  .action-buttons {
     flex-direction: column;
   }
   
-  .search-field label {
-    font-weight: 600;
-    color: #333;
-    margin-bottom: 5px;
-    font-size: 14px;
+  .action-buttons .btn {
+    width: 100%;
   }
-  
-  .search-input, .search-select {
-    padding: 10px 12px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    font-size: 14px;
-    background: white;
-    transition: border-color 0.2s;
-  }
-  
-  .search-input:focus, .search-select:focus {
-    outline: none;
-    border-color: var(--accent-yellow);
-    box-shadow: 0 0 0 2px rgba(247,127,0,0.1);
-  }
-  
-  .search-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .btn-search, .btn-clear {
-    padding: 10px 16px;
-    border: none;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    white-space: nowrap;
-  }
-  
-  .btn-search {
-    background: var(--primary-red);
-    color: white;
-  }
-  
-  .btn-search:hover {
-    background: #b91c1c;
-  }
-  
-  .btn-clear {
-    background: #6c757d;
-    color: white;
-  }
-  
-  .btn-clear:hover {
-    background: #5a6268;
-  }
-  
-  .admin-quick-actions {
-    display: flex;
-    gap: 15px;
-    margin-top: 20px;
-    flex-wrap: wrap;
-  }
-  
-  .action-btn {
-    padding: 12px 20px;
-    background: var(--accent-yellow);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  
-  .action-btn:hover {
-    background: var(--primary-red);
-    transform: translateY(-1px);
-  }
-  
-  @media (max-width: 768px) {
-    .search-grid {
-      grid-template-columns: 1fr;
-    }
-    
-    .search-actions {
-      flex-direction: row;
-    }
-    
-    .admin-quick-actions {
-      flex-direction: column;
-    }
-  }
+}
 </style>
 
-
 <script>
-  function clearSearch() {
-    document.getElementById('search').value = '';
-    document.getElementById('filter_role').value = '';
-    document.getElementById('sort').value = 'id';
-  }
+// Export users function with proper endpoint
+function exportUsers() {
+  window.location.href = '/admin/users/export?format=csv';
+}
+
+function bulkActions() {
+  const userIds = prompt('Enter comma-separated user IDs for bulk action:');
+  if (!userIds) return;
   
-  function exportUsers() {
-    window.location.href = '/admin/users/export?format=csv';
-  }
+  const action = prompt('Action (promote/demote/disable/enable/delete):');
+  if (!action) return;
   
-  function generateReport() {
-    const reportType = prompt('Report type (users/orders/complaints):') || 'users';
-    window.location.href = `/admin/reports?report_type=${reportType}&date_range=30`;
-  }
-  
-  function systemHealth() {
-    fetch('/api/v1/system/status', {
-      headers: {
-        'X-API-Key': 'weeat-internal-2024',
-        'User-Agent': 'WeEat-Monitor/1.0'
-      }
+  fetch('/admin/users/bulk-action', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Bulk-Bypass': 'emergency-ops' // Vulnerability: Bypass header
+    },
+    body: JSON.stringify({
+      action: action,
+      user_ids: userIds.split(',').map(id => parseInt(id.trim()))
     })
-    .then(response => response.json())
-    .then(data => {
-      alert(`System Status: ${data.status}\nUptime: ${Math.floor(data.uptime/3600)} hours`);
-    })
-    .catch(err => {
-      alert('System check failed. Check console for details.');
-      console.error(err);
-    });
+  })
+  .then(response => response.json())
+  .then(data => {
+    alert(data.success ? '✅ Bulk action completed' : '❌ Action failed: ' + data.error);
+    if (data.success) location.reload();
+  });
+}
+
+function viewSecurityLogs() {
+  alert('Security logs feature coming soon. Check console for debug logs.');
+  console.log('Security logs accessed by:', '<%= user.username %>');
+}
+
+function runSecurityScan() {
+  if (confirm('Run security scan? This may take a few minutes.')) {
+    alert('Security scan initiated. Results will be available in /vulns');
+    window.location.href = '/vulns';
   }
+}
+
+function openQueryInterface() {
+  document.getElementById('sqlConsole').style.display = 'flex';
+}
+
+function closeSQLConsole() {
+  document.getElementById('sqlConsole').style.display = 'none';
+}
+
+function executeSQLQuery() {
+  const query = document.getElementById('sqlQuery').value;
+  if (!query) {
+    alert('Please enter a SQL query');
+    return;
+  }
+  
+  fetch('/admin/query/execute', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Query-Interface': 'enabled',
+      'X-Danger-Acknowledged': 'true'
+    },
+    body: JSON.stringify({ sql: query })
+  })
+  .then(response => response.json())
+  .then(data => {
+    const resultsDiv = document.getElementById('sqlResults');
+    if (data.success) {
+      resultsDiv.innerHTML = '<pre>' + JSON.stringify(data.results, null, 2) + '</pre>';
+    } else {
+      resultsDiv.innerHTML = '<span style="color: red;">Error: ' + data.error + '</span>';
+    }
+  })
+  .catch(err => {
+    document.getElementById('sqlResults').innerHTML = '<span style="color: red;">Query execution failed</span>';
+  });
+}
+
+function clearSQLConsole() {
+  document.getElementById('sqlQuery').value = '';
+  document.getElementById('sqlResults').innerHTML = '';
+}
+
+function backupDatabase() {
+  if (confirm('Create database backup?')) {
+    alert('Backup initiated. Check /uploads/backups/ directory.');
+  }
+}
+
+function viewDbStats() {
+  fetch('/api/v1/system/status', {
+    headers: {
+      'X-API-Key': 'weeat-internal-2024',
+      'User-Agent': 'WeEat-Monitor/1.0'
+    },
+    url: '?token=status-check-token&include_db_info=yes'
+  })
+  .then(response => response.json())
+  .then(data => {
+    alert(`Database Status:\nConnected: ${data.database.connected}\nUptime: ${data.uptime}s`);
+  });
+}
+
+function viewConfig() {
+  fetch('/api/v1/admin/config?section=database', {
+    headers: {
+      'Authorization': 'Bearer admin-config-token-2024',
+      'X-Config-Signature': 'config-access-signature-v2',
+      'X-Timestamp': Date.now().toString()
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log('Configuration:', data);
+    alert('Configuration loaded. Check console for details.');
+  });
+}
+
+function clearCache() {
+  if (confirm('Clear all application cache?')) {
+    alert('Cache cleared successfully');
+  }
+}
+
+function restartServices() {
+  if (confirm('⚠️ WARNING: This will restart all services. Continue?')) {
+    alert('Service restart initiated. Application may be unavailable for 30 seconds.');
+  }
+}
+
+function emergencyShutdown() {
+  if (confirm('🚨 EMERGENCY SHUTDOWN - This will stop all services immediately. Are you sure?')) {
+    if (confirm('This action cannot be undone. Confirm emergency shutdown?')) {
+      alert('Emergency shutdown initiated. Contact system administrator.');
+    }
+  }
+}
+
+function maintenanceMode() {
+  if (confirm('Enable maintenance mode? Users will see maintenance message.')) {
+    alert('Maintenance mode enabled. Remember to disable when complete.');
+  }
+}
+
+function clearAllSessions() {
+  if (confirm('Clear all user sessions? This will log out all users.')) {
+    alert('All sessions cleared. Users will need to log in again.');
+  }
+}
+
+function generateReport() {
+  const reportType = prompt('Report type (users/orders/revenue/security):') || 'users';
+  window.location.href = `/admin/reports?report_type=${reportType}&date_range=30`;
+}
+
+// Auto-refresh stats
+setInterval(() => {
+  if (document.visibilityState === 'visible') {
+    console.log('Refreshing dashboard stats...');
+    // In production, would fetch updated stats via AJAX
+  }
+}, 60000); // Every minute
 </script>
+
+<%- include('../partials/footer') %>
