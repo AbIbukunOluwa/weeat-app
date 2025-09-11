@@ -1,21 +1,488 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title><%= title %> | WeEat</title>
-  <link rel="stylesheet" href="/public/styles.css">
-</head>
-<body>
-  <%- include('../partials/header') %>
-	<h2>Order Details</h2>
+<!-- views/orders/order_detail.ejs -->
+<%- include('../partials/header', { title: title, user: user }) %>
 
-	<p><strong>Order ID:</strong> <%= order.id %></p>
-	<p><strong>Items:</strong> <%= order.items %></p>
-	<p><strong>Status:</strong> <%= order.status %></p>
-	<p><strong>Total:</strong> $<%= order.totalAmount %></p>
-	<p><strong>Ordered by:</strong> <%= order.User ? order.User.username : 'Unknown' %></p>
+<div class="order-detail-container">
+  <div class="order-detail-header">
+    <h1>📦 Order Details</h1>
+    <a href="/orders" class="back-link">← Back to Orders</a>
+  </div>
 
-	<a href="/orders">Back to Orders</a>
+  <div class="order-detail-card">
+    <div class="order-info-section">
+      <h2>Order Information</h2>
+      
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="label">Order ID:</span>
+          <span class="value">#<%= order.id %></span>
+        </div>
+        
+        <div class="info-item">
+          <span class="label">Order Number:</span>
+          <span class="value"><%= order.orderNumber || 'N/A' %></span>
+        </div>
+        
+        <div class="info-item">
+          <span class="label">Status:</span>
+          <span class="value status-badge <%= order.status %>">
+            <%= order.status.charAt(0).toUpperCase() + order.status.slice(1) %>
+          </span>
+        </div>
+        
+        <div class="info-item">
+          <span class="label">Order Date:</span>
+          <span class="value">
+            <%= new Date(order.createdAt).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }) %>
+          </span>
+        </div>
+        
+        <div class="info-item">
+          <span class="label">Customer:</span>
+          <span class="value">
+            <%= order.customer ? order.customer.username : (order.User ? order.User.username : 'Customer #' + order.userId) %>
+          </span>
+        </div>
+      </div>
+    </div>
 
-  <%- include('../partials/footer') %>
-</body>
-</html>
+    <div class="items-section">
+      <h2>Order Items</h2>
+      
+      <div class="items-table">
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Quantity</th>
+              <th>Price</th>
+              <th>Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% 
+              let items = [];
+              try {
+                items = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
+              } catch (e) {
+                items = [];
+              }
+            %>
+            <% if (items && items.length > 0) { %>
+              <% items.forEach(item => { %>
+                <tr>
+                  <td><%= item.name || item.foodName %></td>
+                  <td><%= item.qty || item.quantity || 1 %></td>
+                  <td>$<%= (item.price || 0).toFixed(2) %></td>
+                  <td>$<%= ((item.price || 0) * (item.qty || item.quantity || 1)).toFixed(2) %></td>
+                </tr>
+              <% }) %>
+            <% } else { %>
+              <tr>
+                <td colspan="4" class="no-items">No items found</td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="totals-section">
+      <h2>Order Total</h2>
+      
+      <div class="totals-breakdown">
+        <div class="total-row">
+          <span>Subtotal:</span>
+          <span>$<%= order.totalAmount.toFixed(2) %></span>
+        </div>
+        <div class="total-row">
+          <span>Delivery Fee:</span>
+          <span>$4.99</span>
+        </div>
+        <div class="total-row">
+          <span>Tax (13%):</span>
+          <span>$<%= (order.totalAmount * 0.13).toFixed(2) %></span>
+        </div>
+        <div class="total-row final">
+          <span>Total:</span>
+          <span>$<%= (order.totalAmount + 4.99 + (order.totalAmount * 0.13)).toFixed(2) %></span>
+        </div>
+      </div>
+    </div>
+
+    <% if (order.deliveryAddress || order.deliveryInstructions) { %>
+      <div class="delivery-section">
+        <h2>Delivery Information</h2>
+        
+        <% if (order.deliveryAddress) { %>
+          <div class="info-item">
+            <span class="label">Delivery Address:</span>
+            <span class="value"><%= order.deliveryAddress %></span>
+          </div>
+        <% } %>
+        
+        <% if (order.deliveryInstructions) { %>
+          <div class="info-item">
+            <span class="label">Delivery Instructions:</span>
+            <span class="value"><%= order.deliveryInstructions %></span>
+          </div>
+        <% } %>
+        
+        <% if (order.estimatedDelivery) { %>
+          <div class="info-item">
+            <span class="label">Estimated Delivery:</span>
+            <span class="value">
+              <%= new Date(order.estimatedDelivery).toLocaleString() %>
+            </span>
+          </div>
+        <% } %>
+      </div>
+    <% } %>
+
+    <div class="actions-section">
+      <% if (order.status === 'pending' || order.status === 'confirmed') { %>
+        <button onclick="cancelOrder(<%= order.id %>)" class="btn btn-cancel">
+          ❌ Cancel Order
+        </button>
+      <% } %>
+      
+      <% if (order.status === 'delivered') { %>
+        <button onclick="reorderItems(<%= order.id %>)" class="btn btn-reorder">
+          🔄 Reorder Items
+        </button>
+        <a href="/reviews?order=<%= order.id %>" class="btn btn-review">
+          ⭐ Leave Review
+        </a>
+      <% } %>
+      
+      <% if (order.status === 'delivering' || order.status === 'ready') { %>
+        <button onclick="trackOrder(<%= order.id %>)" class="btn btn-track">
+          📍 Track Order
+        </button>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<script>
+function cancelOrder(orderId) {
+  if (confirm('Are you sure you want to cancel this order?')) {
+    const reason = prompt('Please tell us why you\'re cancelling:') || 'Customer requested';
+    
+    fetch(`/orders/${orderId}/cancel`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reason: reason })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('✅ Order cancelled successfully');
+        window.location.href = '/orders';
+      } else {
+        alert('❌ ' + data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Cancel error:', error);
+      alert('❌ Failed to cancel order');
+    });
+  }
+}
+
+function reorderItems(orderId) {
+  if (confirm('Add all items from this order to your cart?')) {
+    fetch(`/orders/${orderId}/reorder`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('✅ Items added to cart!');
+        window.location.href = '/cart';
+      } else {
+        alert('❌ ' + data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Reorder error:', error);
+      alert('❌ Failed to reorder items');
+    });
+  }
+}
+
+function trackOrder(orderId) {
+  alert(`📍 Tracking Order #${orderId}\n\nStatus: On the way\nEstimated arrival: 15-20 minutes\nDriver: John D.\nContact: (204) 555-0123`);
+}
+</script>
+
+<style>
+.order-detail-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+
+.order-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.order-detail-header h1 {
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin: 0;
+}
+
+.back-link {
+  padding: 10px 20px;
+  background: #f8f9fa;
+  color: var(--primary-red);
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: bold;
+  transition: background 0.3s;
+}
+
+.back-link:hover {
+  background: #e9ecef;
+}
+
+.order-detail-card {
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  overflow: hidden;
+}
+
+.order-info-section,
+.items-section,
+.totals-section,
+.delivery-section,
+.actions-section {
+  padding: 30px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.actions-section {
+  border-bottom: none;
+}
+
+h2 {
+  color: var(--primary-red);
+  margin: 0 0 20px 0;
+  font-size: 1.4em;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.info-item .label {
+  font-weight: 600;
+  color: #666;
+  font-size: 0.9em;
+}
+
+.info-item .value {
+  color: #333;
+  font-size: 1.1em;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.9em;
+}
+
+.status-badge.pending {
+  background: #ffc107;
+  color: #000;
+}
+
+.status-badge.confirmed {
+  background: #17a2b8;
+  color: white;
+}
+
+.status-badge.preparing {
+  background: #fd7e14;
+  color: white;
+}
+
+.status-badge.ready {
+  background: #20c997;
+  color: white;
+}
+
+.status-badge.delivering {
+  background: #007bff;
+  color: white;
+}
+
+.status-badge.delivered {
+  background: #28a745;
+  color: white;
+}
+
+.status-badge.cancelled {
+  background: #dc3545;
+  color: white;
+}
+
+.items-table {
+  overflow-x: auto;
+}
+
+.items-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.items-table th {
+  background: #f8f9fa;
+  padding: 12px;
+  text-align: left;
+  font-weight: 600;
+  color: #666;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.items-table td {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.items-table .no-items {
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+.totals-breakdown {
+  max-width: 400px;
+  margin-left: auto;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  font-size: 1.1em;
+}
+
+.total-row.final {
+  border-top: 2px solid #e9ecef;
+  margin-top: 10px;
+  padding-top: 15px;
+  font-weight: bold;
+  font-size: 1.3em;
+  color: var(--primary-red);
+}
+
+.actions-section {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.3s;
+}
+
+.btn-cancel {
+  background: #dc3545;
+  color: white;
+}
+
+.btn-cancel:hover {
+  background: #c82333;
+}
+
+.btn-reorder {
+  background: var(--accent-green);
+  color: white;
+}
+
+.btn-reorder:hover {
+  background: #5a8841;
+}
+
+.btn-review {
+  background: var(--accent-yellow);
+  color: white;
+}
+
+.btn-review:hover {
+  background: #ea580c;
+}
+
+.btn-track {
+  background: #17a2b8;
+  color: white;
+}
+
+.btn-track:hover {
+  background: #138496;
+}
+
+@media (max-width: 768px) {
+  .order-detail-header {
+    flex-direction: column;
+    gap: 15px;
+    text-align: center;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .items-table {
+    font-size: 0.9em;
+  }
+  
+  .totals-breakdown {
+    max-width: none;
+  }
+  
+  .actions-section {
+    flex-direction: column;
+  }
+  
+  .btn {
+    width: 100%;
+  }
+}
+</style>
+
+<%- include('../partials/footer') %>

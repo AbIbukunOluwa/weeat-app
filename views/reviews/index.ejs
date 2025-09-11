@@ -1,0 +1,373 @@
+<!-- views/reviews/index.ejs -->
+<%- include('../partials/header', { title: title, user: user }) %>
+
+<div class="reviews-container">
+  <div class="reviews-header">
+    <h1>⭐ Customer Reviews</h1>
+    <p>Share your experience with our delicious food!</p>
+  </div>
+
+  <!-- Review Submission Form -->
+  <% if (user) { %>
+    <div class="review-form-section">
+      <h2>📝 Write a Review</h2>
+      <form id="reviewForm" class="review-form">
+        <div class="form-group">
+          <label for="foodId">Select Food Item:</label>
+          <select id="foodId" name="foodId" required>
+            <option value="">Choose a food item...</option>
+            <% foods.forEach(food => { %>
+              <option value="<%= food.id %>"><%= food.name %> - $<%= food.price.toFixed(2) %></option>
+            <% }) %>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="rating">Rating:</label>
+          <div class="rating-input">
+            <% for(let i = 5; i >= 1; i--) { %>
+              <input type="radio" name="rating" value="<%= i %>" id="star<%= i %>" <%= i === 5 ? 'required' : '' %>>
+              <label for="star<%= i %>" class="star">⭐</label>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="title">Review Title:</label>
+          <input type="text" id="title" name="title" placeholder="Summarize your experience..." required>
+        </div>
+
+        <div class="form-group">
+          <label for="comment">Your Review:</label>
+          <textarea id="comment" name="comment" rows="5" placeholder="Tell us about your experience..." required></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-submit">Submit Review</button>
+        </div>
+      </form>
+    </div>
+  <% } else { %>
+    <div class="login-prompt">
+      <h3>Want to leave a review?</h3>
+      <p><a href="/auth/login">Login</a> or <a href="/auth/register">Sign up</a> to share your experience!</p>
+    </div>
+  <% } %>
+
+  <!-- Recent Reviews Display -->
+  <div class="recent-reviews-section">
+    <h2>📖 Recent Reviews</h2>
+    
+    <% if (reviews && reviews.length > 0) { %>
+      <div class="reviews-grid">
+        <% reviews.forEach(review => { %>
+          <div class="review-card">
+            <div class="review-header">
+              <div class="review-food">
+                <% if (review.Food) { %>
+                  <img src="<%= review.Food.image %>" alt="<%= review.Food.name %>" class="food-thumbnail">
+                  <div>
+                    <h4><%= review.Food.name %></h4>
+                    <span class="food-price">$<%= review.Food.price.toFixed(2) %></span>
+                  </div>
+                <% } %>
+              </div>
+              <div class="review-rating">
+                <%= '⭐'.repeat(review.rating) %>
+              </div>
+            </div>
+            
+            <div class="review-content">
+              <!-- VULNERABILITY: Stored XSS - rendering without escaping -->
+              <h5><%- review.title %></h5>
+              <p><%- review.comment %></p>
+            </div>
+            
+            <div class="review-footer">
+              <span class="reviewer">
+                👤 <%= review.User ? review.User.username : 'Anonymous' %>
+              </span>
+              <span class="review-date">
+                <%= new Date(review.createdAt).toLocaleDateString() %>
+              </span>
+            </div>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <div class="no-reviews">
+        <h3>No reviews yet</h3>
+        <p>Be the first to share your experience!</p>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<script>
+document.getElementById('reviewForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const formData = new FormData(e.target);
+  const reviewData = {
+    foodId: formData.get('foodId'),
+    rating: formData.get('rating'),
+    title: formData.get('title'),
+    comment: formData.get('comment')
+  };
+  
+  try {
+    const response = await fetch('/reviews/submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(reviewData)
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      alert('✅ Review submitted successfully!');
+      location.reload();
+    } else {
+      alert('❌ Error: ' + result.error);
+    }
+  } catch (error) {
+    console.error('Review submission error:', error);
+    alert('❌ Failed to submit review');
+  }
+});
+</script>
+
+<style>
+.reviews-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+
+.reviews-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.reviews-header h1 {
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 10px;
+}
+
+.review-form-section {
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  margin-bottom: 40px;
+}
+
+.review-form-section h2 {
+  color: var(--primary-red);
+  margin-bottom: 25px;
+}
+
+.form-group {
+  margin-bottom: 25px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #333;
+}
+
+.form-group select,
+.form-group input[type="text"],
+.form-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+}
+
+.rating-input {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.rating-input input[type="radio"] {
+  display: none;
+}
+
+.rating-input .star {
+  font-size: 2em;
+  cursor: pointer;
+  opacity: 0.3;
+  transition: all 0.2s;
+}
+
+.rating-input input[type="radio"]:checked ~ .star,
+.rating-input .star:hover,
+.rating-input .star:hover ~ .star {
+  opacity: 1;
+}
+
+.btn-submit {
+  padding: 12px 30px;
+  background: var(--primary-red);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.btn-submit:hover {
+  background: #b91c1c;
+}
+
+.login-prompt {
+  text-align: center;
+  padding: 40px;
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  margin-bottom: 40px;
+}
+
+.login-prompt a {
+  color: var(--accent-yellow);
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.recent-reviews-section {
+  margin-top: 40px;
+}
+
+.recent-reviews-section h2 {
+  color: var(--primary-red);
+  margin-bottom: 25px;
+  text-align: center;
+}
+
+.reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 25px;
+}
+
+.review-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  transition: transform 0.3s;
+}
+
+.review-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.review-food {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.food-thumbnail {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.review-food h4 {
+  margin: 0;
+  color: var(--primary-red);
+  font-size: 1.1em;
+}
+
+.food-price {
+  color: var(--accent-yellow);
+  font-weight: bold;
+  font-size: 0.9em;
+}
+
+.review-rating {
+  font-size: 1.1em;
+}
+
+.review-content {
+  margin: 20px 0;
+}
+
+.review-content h5 {
+  color: #333;
+  margin: 0 0 10px 0;
+  font-size: 1.1em;
+}
+
+.review-content p {
+  color: #666;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.review-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 0.9em;
+  color: #999;
+}
+
+.reviewer {
+  font-weight: 600;
+  color: #666;
+}
+
+.no-reviews {
+  text-align: center;
+  padding: 60px 20px;
+  background: white;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+.no-reviews h3 {
+  color: var(--primary-red);
+  margin-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+  .reviews-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .review-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+</style>
+
+<%- include('../partials/footer') %>

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Order, CartItem } = require('../models');
+const { Order, CartItem, User } = require('../models');
 
 router.use((req, res, next) => {
   if (!req.session.user) return res.redirect('/auth/login');
@@ -44,15 +44,21 @@ router.post('/create', async (req, res) => {
   }
 });
 
-// FIXED: Use the correct view path that exists
+// View all orders
 router.get('/', async (req, res) => {
   try {
     const orders = await Order.findAll({ 
       where: { userId: req.session.user.id },
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['username', 'email', 'name']
+        }
+      ],
       order: [['createdAt', 'DESC']]
     });
     
-    // FIXED: Use 'orders/order_view' instead of 'orders/view'
     res.render('orders/order_view', { 
       title: 'My Orders - WeEat',
       user: req.session.user,
@@ -76,7 +82,14 @@ router.get('/:id', async (req, res) => {
       where: { 
         id: orderId, 
         userId: req.session.user.id 
-      }
+      },
+      include: [
+        {
+          model: User,
+          as: 'customer',
+          attributes: ['username', 'email', 'name']
+        }
+      ]
     });
 
     if (!order) {
@@ -131,6 +144,7 @@ router.post('/:id/cancel', async (req, res) => {
 
     order.status = 'cancelled';
     order.cancellationReason = reason || 'Customer requested cancellation';
+    order.cancelledAt = new Date();
     await order.save();
 
     res.json({ 

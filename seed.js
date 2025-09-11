@@ -6,50 +6,50 @@ const { sequelize, User, Order, Complaint, Vulnerability, Food, Review } = requi
     await sequelize.sync({ force: true });
     console.log('🗑️  Database synced and cleared!');
 
-    // Create users with intentional vulnerabilities
+    // Create users with passwords that meet complexity requirements
     const users = [
       { 
         name: 'Alice Customer', 
         username: 'alice', 
         email: 'alice@example.com', 
         role: 'customer', 
-        password: 'alice123' 
+        password: 'Alice123!' // Updated to meet requirements
       },
       { 
         name: 'Bob Customer', 
         username: 'bob', 
         email: 'bob@example.com', 
         role: 'customer', 
-        password: 'bob123' 
+        password: 'Bob12345!' // Updated to meet requirements
       },
       { 
         name: 'Charlie Staff', 
         username: 'charlie', 
         email: 'charlie@weeat.com', 
         role: 'staff', 
-        password: 'charlie123' 
+        password: 'Charlie123!' // Updated to meet requirements
       },
       { 
         name: 'Diana Admin', 
         username: 'diana', 
         email: 'diana@weeat.com', 
         role: 'admin', 
-        password: 'diana123' 
+        password: 'Diana123!' // Updated to meet requirements
       },
-      // VULNERABILITY A07: Default/weak credentials
+      // VULNERABILITY A07: Default/weak credentials (but still meeting minimum requirements)
       { 
         name: 'System Admin', 
         username: 'admin', 
         email: 'admin@weeat.com', 
         role: 'admin', 
-        password: 'admin' // Weak default password
+        password: 'Admin123!' // Updated to meet requirements
       },
       { 
         name: 'Test User', 
         username: 'test', 
         email: 'test@weeat.com', 
         role: 'customer', 
-        password: '123' // Very weak password
+        password: 'Test1234!' // Updated to meet requirements
       }
     ];
 
@@ -89,11 +89,11 @@ const { sequelize, User, Order, Complaint, Vulnerability, Food, Review } = requi
       
       // Ice Cream Variations
       { 
-        name: 'Chocolate Soft Serve',  // Changed from 'Vanilla Soft Serve'
+        name: 'Chocolate Soft Serve',
         image: 'https://images.unsplash.com/photo-1580915411954-282cb1b0d780?w=500&auto=format&fit=crop&q=60', 
         price: 2.99,
         category: 'desserts',
-        description: 'Creamy chocolate soft serve ice cream',  // Changed from vanilla
+        description: 'Creamy chocolate soft serve ice cream',
         status: 'active'
       },
       { 
@@ -560,13 +560,13 @@ const { sequelize, User, Order, Complaint, Vulnerability, Food, Review } = requi
     }
 
     console.log('\n🎉 Seeding complete!');
-    console.log('\n📋 Test Accounts:');
-    console.log('   👤 Customer: alice@example.com / alice123');
-    console.log('   👤 Customer: bob@example.com / bob123');
-    console.log('   👨‍💼 Staff: charlie@weeat.com / charlie123');
-    console.log('   👩‍💻 Admin: diana@weeat.com / diana123');
-    console.log('   🚨 Vulnerable: admin@weeat.com / admin');
-    console.log('   🚨 Weak Auth: test@weeat.com / 123');
+    console.log('\n📋 Test Accounts (with updated passwords):');
+    console.log('   👤 Customer: alice@example.com / Alice123!');
+    console.log('   👤 Customer: bob@example.com / Bob12345!');
+    console.log('   👨‍💼 Staff: charlie@weeat.com / Charlie123!');
+    console.log('   👩‍💻 Admin: diana@weeat.com / Diana123!');
+    console.log('   🚨 Vulnerable: admin@weeat.com / Admin123!');
+    console.log('   🚨 Weak Auth: test@weeat.com / Test1234!');
     
     console.log('\n🍔 Menu Categories:');
     console.log('   - Mains: Burgers, Pizza, Chicken, Jollof Rice, Noodles, Wraps');

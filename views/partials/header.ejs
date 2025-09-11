@@ -16,8 +16,15 @@
         <% if (user) { %>
           <li class="profile-dropdown">
             <div class="profile-trigger" onclick="toggleDropdown()">
-              <% if (user.avatar) { %>
-                <img src="<%= user.avatar %>" alt="Profile" class="profile-pic">
+              <% 
+                // Force refresh avatar URL with cache buster to prevent caching issues
+                let avatarUrl = user.avatar;
+                if (avatarUrl && !avatarUrl.includes('?')) {
+                  avatarUrl = avatarUrl + '?t=' + Date.now();
+                }
+              %>
+              <% if (avatarUrl) { %>
+                <img src="<%= avatarUrl %>" alt="Profile" class="profile-pic" id="headerAvatar">
               <% } else { %>
                 <div class="profile-pic-placeholder">
                   <%= user.username.charAt(0).toUpperCase() %>
@@ -29,6 +36,9 @@
               <div class="dropdown-header">
                 <strong><%= user.username %></strong>
                 <span class="user-email"><%= user.email %></span>
+                <% if (user.role !== 'customer') { %>
+                  <span class="user-role"><%= user.role.toUpperCase() %></span>
+                <% } %>
               </div>
               <div class="dropdown-divider"></div>
               <a href="/profile" class="dropdown-item">
@@ -43,6 +53,9 @@
               <a href="/complaints" class="dropdown-item">
                 <span class="dropdown-icon">💬</span> Feedback
               </a>
+              <a href="/reviews" class="dropdown-item">
+                <span class="dropdown-icon">⭐</span> Reviews
+              </a>
               <div class="dropdown-divider"></div>
               <a href="/profile#settings" class="dropdown-item">
                 <span class="dropdown-icon">⚙️</span> Settings
@@ -55,6 +68,11 @@
                 <a href="/admin" class="dropdown-item admin-link">
                   <span class="dropdown-icon">🛡️</span> Admin Panel
                 </a>
+                <% if (user.role === 'admin') { %>
+                  <a href="/vulns" class="dropdown-item admin-link">
+                    <span class="dropdown-icon">🐛</span> Vulnerability Tracker
+                  </a>
+                <% } %>
               <% } %>
               <div class="dropdown-divider"></div>
               <a href="/auth/logout" class="dropdown-item logout">
@@ -78,8 +96,8 @@
   padding: 12px 25px;
   display: flex;
   justify-content: space-between;
-  align-items: center;  /* This ensures vertical alignment */
-  height: 60px;  /* Fixed height for consistency */
+  align-items: center;
+  height: 60px;
 }
 
 .navbar .logo {
@@ -102,13 +120,13 @@
   gap: 18px;
   margin: 0;
   padding: 0;
-  align-items: center;  /* Ensure all items align vertically */
+  align-items: center;
   height: 100%;
 }
 
 .navbar .nav-links li {
   display: flex;
-  align-items: center;  /* Center each li vertically */
+  align-items: center;
 }
 
 .navbar .nav-links li a {
@@ -130,7 +148,6 @@
   display: flex;
   align-items: center;
 }
-
 
 .profile-trigger {
   display: flex;
@@ -215,6 +232,17 @@
 .user-email {
   font-size: 0.85em;
   opacity: 0.9;
+  display: block;
+}
+
+.user-role {
+  font-size: 0.75em;
+  background: rgba(255,255,255,0.2);
+  padding: 2px 8px;
+  border-radius: 10px;
+  display: inline-block;
+  margin-top: 5px;
+  font-weight: bold;
 }
 
 .dropdown-divider {
@@ -228,24 +256,24 @@
   align-items: center;
   gap: 12px;
   padding: 12px 15px;
-  color: var(--text-gray) !important;  /* Force color to always show */
+  color: var(--text-gray) !important;
   text-decoration: none;
   transition: background 0.2s;
-  opacity: 1;  /* Ensure full opacity */
+  opacity: 1;
 }
 
 .dropdown-item:hover {
   background: #f8f9fa;
-  color: var(--primary-red) !important;  /* Change color on hover */
+  color: var(--primary-red) !important;
 }
 
 .dropdown-item.admin-link {
-  color: var(--primary-red) !important;  /* Admin link always red */
+  color: var(--primary-red) !important;
   font-weight: 600;
 }
 
 .dropdown-item.logout {
-  color: #dc3545 !important;  /* Logout always red */
+  color: #dc3545 !important;
 }
 
 .dropdown-item.logout:hover {
@@ -253,13 +281,11 @@
   color: #b91c1c !important;
 }
 
-/* Ensure dropdown text is always visible */
 .dropdown-item span {
   opacity: 1;
   visibility: visible;
 }
 
-/* Click outside to close */
 .dropdown-overlay {
   position: fixed;
   top: 0;
@@ -326,4 +352,16 @@ function closeDropdownOutside(event) {
     removeClickOutside();
   }
 }
+
+// Auto-refresh avatar when page loads (for persistence)
+document.addEventListener('DOMContentLoaded', function() {
+  // If there's an avatar image, ensure it's loaded fresh
+  const avatarImg = document.getElementById('headerAvatar');
+  if (avatarImg && avatarImg.src) {
+    // Force reload by adding timestamp if not already present
+    if (!avatarImg.src.includes('?t=')) {
+      avatarImg.src = avatarImg.src + '?t=' + Date.now();
+    }
+  }
+});
 </script>

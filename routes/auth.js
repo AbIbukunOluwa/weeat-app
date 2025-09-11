@@ -1,8 +1,9 @@
-// routes/auth.js - Updated with UUID support and enhanced security
+// routes/auth.js - Fixed Sequelize syntax error
 const express = require('express');
 const router = express.Router();
 const { User } = require('../models');
 const crypto = require('crypto');
+const { Op } = require('sequelize'); // Add this import
 
 // Enhanced session data with UUIDs
 function createSessionData(user) {
@@ -56,10 +57,10 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // Check if user exists by email or username
+    // FIX: Use proper Sequelize syntax with Op.or
     let existingUser = await User.findOne({ 
       where: { 
-        $or: [
+        [Op.or]: [
           { email: email },
           { username: username }
         ]
@@ -136,10 +137,10 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Find user by email or username (support both for flexibility)
+    // FIX: Use proper Sequelize syntax with Op.or
     const user = await User.findOne({ 
       where: { 
-        $or: [
+        [Op.or]: [
           { email: email },
           { username: email } // Allow login with username too
         ]

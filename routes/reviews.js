@@ -1,8 +1,46 @@
-// routes/reviews.js - NEW FILE FOR STORED XSS + CSRF VULNERABILITIES
+// routes/reviews.js - Fixed reviews route
 
 const express = require('express');
 const router = express.Router();
 const { Review, Food, User } = require('../models');
+
+// Main reviews page - handles both /reviews and /reviews?order=X
+router.get('/', async (req, res) => {
+  try {
+    const orderId = req.query.order;
+    
+    // If coming from an order, could pre-select food items from that order
+    // For now, just show the reviews page
+    const foods = await Food.findAll({
+      where: { status: 'active' },
+      order: [['name', 'ASC']]
+    });
+    
+    const reviews = await Review.findAll({
+      include: [
+        { model: User, attributes: ['username'] },
+        { model: Food, attributes: ['name', 'image', 'price'] }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 20
+    });
+    
+    res.render('reviews/index', {
+      title: 'Food Reviews - WeEat',
+      user: req.session.user,
+      foods: foods,
+      reviews: reviews,
+      orderId: orderId
+    });
+  } catch (err) {
+    console.error('Reviews page error:', err);
+    res.status(500).render('error', {
+      error: 'Failed to load reviews',
+      title: 'Error',
+      user: req.session.user
+    });
+  }
+});
 
 // Submit review with STORED XSS vulnerability
 router.post('/submit', async (req, res) => {
@@ -45,7 +83,7 @@ router.post('/submit', async (req, res) => {
   }
 });
 
-// Display reviews with XSS vulnerability (no escaping)
+// Display reviews for specific food with XSS vulnerability (no escaping)
 router.get('/food/:foodId', async (req, res) => {
   try {
     const foodId = req.params.foodId;
@@ -71,9 +109,25 @@ router.get('/food/:foodId', async (req, res) => {
     res.status(500).render('error', { 
       error: 'Failed to load reviews',
       details: err.message,
-      stack: err.stack
+      stack: err.stack,
+      title: 'Error',
+      user: req.session.user
     });
   }
+});
+
+// Like a review
+router.post('/:id/like', (req, res) => {
+  // VULNERABILITY: No authentication check
+  // VULNERABILITY: No CSRF protection
+  res.json({ success: true, message: 'Review liked' });
+});
+
+// Report a review
+router.post('/:id/report', (req, res) => {
+  const { reason } = req.body;
+  // VULNERABILITY: No validation of report reason
+  res.json({ success: true, message: 'Review reported' });
 });
 
 // Admin review management with CSRF vulnerability
@@ -122,6 +176,33 @@ router.post('/admin/delete/:id', (req, res) => {
     .catch(err => {
       res.status(500).json({ error: 'Deletion failed', details: err.message });
     });
+});
+
+// Edit review
+router.post('/admin/edit/:id', async (req, res) => {
+  // VULNERABILITY: No CSRF protection
+  if (!req.session.user || req.session.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  try {
+    const reviewId = req.params.id;
+    const { title, comment } = req.body;
+    
+    const review = await Review.findByPk(reviewId);
+    if (!review) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+    
+    // VULNERABILITY: No sanitization on update
+    review.title = title;
+    review.comment = comment;
+    await review.save();
+    
+    res.json({ success: true, message: 'Review updated' });
+  } catch (err) {
+    res.status(500).json({ error: 'Update failed', details: err.message });
+  }
 });
 
 module.exports = router;
