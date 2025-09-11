@@ -48,165 +48,210 @@
     </div>
   </div>
 
-  <!-- Quick Actions -->
-  <div class="quick-actions">
-    <h2>🚀 Management Tools</h2>
-    <div class="action-grid">
-      <a href="/admin/users" class="action-btn">
-        <span class="action-icon">👤</span>
-        <span class="action-text">User Management</span>
-      </a>
-      <a href="/admin/orders" class="action-btn">
-        <span class="action-icon">📋</span>
-        <span class="action-text">Order Processing</span>
-      </a>
-      <a href="/complaints" class="action-btn">
-        <span class="action-icon">🎧</span>
-        <span class="action-text">Handle Complaints</span>
-      </a>
-      <a href="/admin/reports" class="action-btn">
-        <span class="action-icon">📊</span>
-        <span class="action-text">Generate Reports</span>
-      </a>
-      <a href="/vulns" class="action-btn security">
-        <span class="action-icon">🔒</span>
-        <span class="action-text">Security Tracker</span>
-      </a>
+  <div class="tool-section">
+    <h3>🗄️ Database & User Management</h3>
+    
+    <!-- Enhanced User Search -->
+    <div class="user-search-section">
+      <h4>👤 User Search & Management</h4>
+      <form method="GET" action="/admin/users" class="advanced-search-form">
+        <div class="search-grid">
+          <div class="search-field">
+            <label for="search">Search Users:</label>
+            <input type="text" name="search" id="search" placeholder="Username or email..." 
+                   value="<%= typeof search !== 'undefined' ? search : '' %>" class="search-input">
+          </div>
+          
+          <div class="search-field">
+            <label for="filter_role">Filter by Role:</label>
+            <select name="filter_role" id="filter_role" class="search-select">
+              <option value="">All Roles</option>
+              <option value="customer">Customer</option>
+              <option value="staff">Staff</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          
+          <div class="search-field">
+            <label for="sort">Sort by:</label>
+            <select name="sort" id="sort" class="search-select">
+              <option value="id">User ID</option>
+              <option value="username">Username</option>
+              <option value="email">Email</option>
+              <option value="createdAt">Date Created</option>
+            </select>
+          </div>
+          
+          <div class="search-actions">
+            <button type="submit" class="btn-search">🔍 Search Users</button>
+            <button type="button" onclick="clearSearch()" class="btn-clear">Clear</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  
+    <!-- Quick Actions -->
+    <div class="admin-quick-actions">
+      <button onclick="exportUsers()" class="action-btn">📊 Export Users</button>
+      <button onclick="generateReport()" class="action-btn">📈 Generate Report</button>
+      <button onclick="systemHealth()" class="action-btn">🔧 System Health</button>
     </div>
   </div>
+  
 
-  <!-- VULNERABILITY TESTING TOOLS -->
-  <div class="vulnerability-tools">
-    <h2>🔧 System Administration Tools</h2>
-    <div class="tools-warning">
-      ⚠️ <strong>Warning:</strong> These tools are for authorized administrators only. Misuse may result in system instability.
-    </div>
+<style>
+  .user-search-section {
+    background: #f8f9fa;
+    padding: 25px;
+    border-radius: 12px;
+    margin: 20px 0;
+    border: 1px solid #e9ecef;
+  }
+  
+  .user-search-section h4 {
+    color: var(--primary-red);
+    margin: 0 0 20px 0;
+    font-size: 1.2em;
+  }
+  
+  .search-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;
+    gap: 15px;
+    align-items: end;
+  }
+  
+  .search-field {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .search-field label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+    font-size: 14px;
+  }
+  
+  .search-input, .search-select {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+    transition: border-color 0.2s;
+  }
+  
+  .search-input:focus, .search-select:focus {
+    outline: none;
+    border-color: var(--accent-yellow);
+    box-shadow: 0 0 0 2px rgba(247,127,0,0.1);
+  }
+  
+  .search-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .btn-search, .btn-clear {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  
+  .btn-search {
+    background: var(--primary-red);
+    color: white;
+  }
+  
+  .btn-search:hover {
+    background: #b91c1c;
+  }
+  
+  .btn-clear {
+    background: #6c757d;
+    color: white;
+  }
+  
+  .btn-clear:hover {
+    background: #5a6268;
+  }
+  
+  .admin-quick-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+  
+  .action-btn {
+    padding: 12px 20px;
+    background: var(--accent-yellow);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  .action-btn:hover {
+    background: var(--primary-red);
+    transform: translateY(-1px);
+  }
+  
+  @media (max-width: 768px) {
+    .search-grid {
+      grid-template-columns: 1fr;
+    }
     
-    <!-- VULNERABILITY #1: SQL Injection + XXE Tool -->
-    <div class="tool-section">
-      <h3>🗄️ Database & Configuration Manager</h3>
-      <div class="tool-tabs">
-        <button class="tab-btn active" onclick="switchTab('sql')">SQL Query</button>
-        <button class="tab-btn" onclick="switchTab('xml')">XML Config</button>
-        <button class="tab-btn" onclick="switchTab('import')">Bulk Import</button>
-      </div>
-      
-      <!-- SQL Query Tab (SQL Injection) -->
-      <div id="sql-tab" class="tab-content active">
-        <form id="sqlQueryForm" class="tool-form">
-          <div class="form-group">
-            <label for="sqlQuery">SQL Query:</label>
-            <textarea id="sqlQuery" name="sql" rows="8" placeholder="SELECT * FROM users WHERE role = 'admin';"
-              class="code-input"></textarea>
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="btn-primary">Execute Query</button>
-            <button type="button" onclick="loadSampleQueries()" class="btn-secondary">Load Samples</button>
-            <button type="button" onclick="clearQuery()" class="btn-tertiary">Clear</button>
-          </div>
-          <div class="query-hints">
-            <small>💡 Try: <code>SELECT username,email,role FROM users;</code> or advanced joins</small>
-          </div>
-        </form>
-      </div>
-      
-      <!-- XML Config Tab (XXE Vulnerability) -->
-      <div id="xml-tab" class="tab-content">
-        <form id="xmlConfigForm" class="tool-form">
-          <div class="form-group">
-            <label for="xmlConfig">XML Configuration:</label>
-            <textarea id="xmlConfig" name="xml" rows="8" 
-              placeholder="<?xml version='1.0'?>&#10;<config>&#10;  <setting name='debug'>true</setting>&#10;</config>"
-              class="code-input"></textarea>
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="btn-primary">Process XML</button>
-            <button type="button" onclick="loadSampleXML()" class="btn-secondary">Load Template</button>
-          </div>
-          <div class="query-hints">
-            <small>💡 Supports DTD entities and external references</small>
-          </div>
-        </form>
-      </div>
-      
-      <!-- File Import Tab -->
-      <div id="import-tab" class="tab-content">
-        <form id="fileImportForm" enctype="multipart/form-data" class="tool-form">
-          <div class="upload-zone" onclick="document.getElementById('configFile').click()">
-            <input type="file" id="configFile" name="config" accept=".xml,.json,.csv,.txt" style="display: none;">
-            <div class="upload-placeholder">
-              <span class="upload-icon">📁</span>
-              <span class="upload-text">Click to select configuration file</span>
-              <small>Supports: XML, JSON, CSV, TXT and more...</small>
-            </div>
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="btn-primary">Upload & Process</button>
-          </div>
-        </form>
-      </div>
-      
-      <div id="queryResults" class="results-container"></div>
-    </div>
+    .search-actions {
+      flex-direction: row;
+    }
+    
+    .admin-quick-actions {
+      flex-direction: column;
+    }
+  }
+</style>
 
-    <!-- VULNERABILITY #2: Session/Object Deserialization -->
-    <div class="tool-section">
-      <h3>👤 Session & User Management</h3>
-      <div class="tool-grid">
-        <div class="tool-item">
-          <h4>Session Data Import</h4>
-          <form id="sessionImportForm">
-            <textarea id="sessionData" name="sessionData" rows="6" 
-              placeholder='{"user":{"id":1,"role":"admin","permissions":["all"]}}'
-              class="code-input"></textarea>
-            <div class="form-actions">
-              <button type="submit" class="btn-primary">Import Session</button>
-              <button type="button" onclick="exportCurrentSession()" class="btn-secondary">Export Current</button>
-            </div>
-          </form>
-        </div>
-        
-        <div class="tool-item">
-          <h4>Bulk User Preferences</h4>
-          <form id="preferencesForm">
-            <select id="encoding" name="encoding" class="form-select">
-              <option value="json">JSON Format</option>
-              <option value="base64">Base64 Encoded</option>
-              <option value="url">URL Encoded</option>
-            </select>
-            <textarea id="preferences" name="preferences" rows="4" 
-              placeholder='{"theme":"dark","notifications":true}'
-              class="code-input"></textarea>
-            <button type="submit" class="btn-primary">Apply Preferences</button>
-          </form>
-        </div>
-      </div>
-      <div id="sessionResults" class="results-container"></div>
-    </div>
 
-    <!-- VULNERABILITY #3: Command Injection Tool -->
-    <div class="tool-section">
-      <h3>🖥️ System Operations</h3>
-      <div class="tool-grid">
-        <div class="tool-item">
-          <h4>Log File Processor</h4>
-          <form id="logProcessForm">
-            <input type="text" id="logFile" name="logFile" placeholder="/var/log/weeat/access.log" class="form-input">
-            <select id="operation" name="operation" class="form-select">
-              <option value="cat">View File</option>
-              <option value="tail -n 50">Last 50 Lines</option>
-              <option value="grep 'ERROR'">Find Errors</option>
-              <option value="wc -l">Count Lines</option>
-            </select>
-            <button type="submit" class="btn-primary">Process</button>
-          </form>
-        </div>
-        
-        <div class="tool-item">
-          <h4>System Health Check</h4>
-          <form id="healthCheckForm">
-            <select id="healthCommand" name="command" class="form-select">
-              <option value="ps aux">Running Processes</option>
-              <option value="df -h">Disk Usage</option>
-              <option value="netstat -tulnp">Network Connections</option>
-              <option value
+<script>
+  function clearSearch() {
+    document.getElementById('search').value = '';
+    document.getElementById('filter_role').value = '';
+    document.getElementById('sort').value = 'id';
+  }
+  
+  function exportUsers() {
+    window.location.href = '/admin/users/export?format=csv';
+  }
+  
+  function generateReport() {
+    const reportType = prompt('Report type (users/orders/complaints):') || 'users';
+    window.location.href = `/admin/reports?report_type=${reportType}&date_range=30`;
+  }
+  
+  function systemHealth() {
+    fetch('/api/v1/system/status', {
+      headers: {
+        'X-API-Key': 'weeat-internal-2024',
+        'User-Agent': 'WeEat-Monitor/1.0'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      alert(`System Status: ${data.status}\nUptime: ${Math.floor(data.uptime/3600)} hours`);
+    })
+    .catch(err => {
+      alert('System check failed. Check console for details.');
+      console.error(err);
+    });
+  }
+</script>

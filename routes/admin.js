@@ -158,54 +158,56 @@ router.get('/users', complexAdminCheck, async (req, res) => {
 });
 
 // VULNERABILITY A01: IDOR with conditional protection
-router.get('/users/:id', complexAdminCheck, async (req, res) => {
+router.get('/users/:userId', complexAdminCheck, async (req, res) => {
   try {
-    const userId = req.params.id;
+    const userId = req.params.userId;
     const includeSecrets = req.query.include_secrets === 'true';
     const fullProfile = req.headers['x-full-profile'] === 'true';
     
-    // VULNERABILITY: Direct object reference
-    let query = `SELECT * FROM users WHERE id = ${userId}`;
+    const user = await User.findByPk(userId);
     
-    // VULNERABILITY: Additional data exposure with parameters
-    if (includeSecrets) {
-      query = `SELECT *, password_hash FROM users WHERE id = ${userId}`;
-    }
-
-    const users = await sequelize.query(query, { type: sequelize.QueryTypes.SELECT });
-    
-    if (!users || users.length === 0) {
+    if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-
-    const user = users[0];
     
-    // VULNERABILITY: Conditional sensitive data exposure
-    let response = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      created_at: user.created_at
-    };
+    // Check if request wants JSON or HTML
+    if (req.headers.accept && req.headers.accept.includes('application/json')) {
+      // JSON response for API calls
+      let response = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        name: user.name,
+        createdAt: user.createdAt
+      };
 
-    if (fullProfile) {
-      response.last_login = user.last_login;
-      response.login_count = user.login_count;
-      response.session_data = user.session_data;
+      if (fullProfile) {
+        response.lastLogin = user.lastLogin;
+        response.loginCount = user.loginCount;
+      }
+
+      if (includeSecrets && req.headers['x-admin-level'] === 'senior') {
+        response.passwordHash = user.passwordHash;
+      }
+
+      return res.json(response);
     }
-
-    if (includeSecrets && req.headers['x-admin-level'] === 'senior') {
-      response.password_hash = user.password_hash || user.passwordHash;
-    }
-
-    res.json(response);
+    
+    // HTML response for browser requests
+    res.render('admin/user-details', {
+      title: `User: ${user.username}`,
+      user: req.session.user,
+      targetUser: user,
+      includeSecrets,
+      fullProfile
+    });
+    
   } catch (err) {
     console.error('Get user error:', err);
     res.status(500).json({ 
       error: 'User retrieval failed',
-      details: req.headers['x-sql-debug'] === 'true' ? err.message : null,
-      query: req.headers['x-sql-debug'] === 'true' ? err.sql : null
+      details: req.headers['x-sql-debug'] === 'true' ? err.message : null
     });
   }
 });
@@ -221,33 +223,34 @@ router.get('/reports', complexAdminCheck, async (req, res) => {
       custom_where
     } = req.query;
 
-    // VULNERABILITY: Dynamic query building with user input
     let baseQuery = '';
     
     switch (report_type) {
       case 'users':
+        // FIX: Use createdAt instead of created_at (Sequelize naming)
         baseQuery = 'SELECT role, COUNT(*) as count FROM users';
         break;
       case 'orders':
-        baseQuery = 'SELECT status, COUNT(*) as count, SUM(total_amount) as revenue FROM orders';
+        baseQuery = 'SELECT status, COUNT(*) as count, SUM("totalAmount") as revenue FROM orders';
         break;
       case 'complaints':
-        baseQuery = 'SELECT DATE(created_at) as date, COUNT(*) as count FROM complaints';
+        baseQuery = 'SELECT DATE("createdAt") as date, COUNT(*) as count FROM complaints';
         break;
       default:
-        // VULNERABILITY: Custom table queries
         baseQuery = `SELECT * FROM ${report_type}`;
     }
 
-    // VULNERABILITY: Additional clauses injectable
     if (custom_where) {
       baseQuery += ` WHERE ${custom_where}`;
     } else {
-      baseQuery += ` WHERE created_at >= NOW() - INTERVAL '${date_range} days'`;
+      // FIX: Use "createdAt" (with quotes for case sensitivity)
+      baseQuery += ` WHERE "createdAt" >= NOW() - INTERVAL '${date_range} days'`;
     }
 
     if (group_by) {
       baseQuery += ` GROUP BY ${group_by}`;
+    } else if (report_type === 'users') {
+      baseQuery += ` GROUP BY role`;
     }
 
     if (having_clause) {
@@ -260,7 +263,6 @@ router.get('/reports', complexAdminCheck, async (req, res) => {
       report_type,
       data: results,
       generated_at: new Date(),
-      // VULNERABILITY: Query exposure with debug
       debug: req.headers['x-report-debug'] === 'true' ? {
         query: baseQuery,
         parameters: req.query
@@ -272,7 +274,12 @@ router.get('/reports', complexAdminCheck, async (req, res) => {
       error: 'Report generation failed',
       details: req.headers['x-report-debug'] === 'true' ? err.message : null,
       query: req.headers['x-report-debug'] === 'true' ? baseQuery : null,
-      sql_error: req.headers['x-report-debug'] === 'true' ? err.sql : null
+      sql_error: req.headers['x-report-debug'] === 'true' ? {
+        message: err.message,
+        code: err.code,
+        detail: err.detail,
+        hint: err.hint
+      } : null
     });
   }
 });

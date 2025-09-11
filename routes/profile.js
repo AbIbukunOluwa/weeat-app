@@ -98,7 +98,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // Avatar upload route - FIXED
-router.post('/upload-avatar', requireAuth, upload.single('avatar'), async (req, res) => {
+router.post('/upload-avatar', requireAuth, upload.single('avatar'), validateFileUpload, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ 
@@ -106,7 +106,7 @@ router.post('/upload-avatar', requireAuth, upload.single('avatar'), async (req, 
         error: 'No file uploaded. Please select an image file.' 
       });
     }
-
+    
     // Enhanced file validation
     const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
     const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
@@ -183,11 +183,15 @@ router.post('/upload-avatar', requireAuth, upload.single('avatar'), async (req, 
     // Update session data
     req.session.user.avatar = avatarUrl;
     
-    // Save session to ensure persistence
+    // Force session save and wait for it
     await new Promise((resolve, reject) => {
       req.session.save((err) => {
-        if (err) reject(err);
-        else resolve();
+        if (err) {
+          console.error('Session save error:', err);
+          reject(err);
+        } else {
+          resolve();
+        }
       });
     });
     
@@ -223,7 +227,8 @@ router.post('/upload-avatar', requireAuth, upload.single('avatar'), async (req, 
   }
 });
 
-// Avatar deletion route - FIXED: Better error handling
+// Also fix the delete avatar route:
+
 router.delete('/avatar', requireAuth, async (req, res) => {
   try {
     const user = await User.findByPk(req.session.user.id);
@@ -249,21 +254,24 @@ router.delete('/avatar', requireAuth, async (req, res) => {
         fs.unlinkSync(avatarPath);
       } catch (deleteError) {
         console.warn('Could not delete avatar file:', deleteError.message);
-        // Continue with database update even if file deletion fails
       }
     }
     
     // Update database
     await user.update({ avatar: null });
     
-    // Update session
+    // CRITICAL FIX: Update session immediately
     req.session.user.avatar = null;
     
-    // Save session to ensure persistence
+    // Force session save
     await new Promise((resolve, reject) => {
       req.session.save((err) => {
-        if (err) reject(err);
-        else resolve();
+        if (err) {
+          console.error('Session save error:', err);
+          reject(err);
+        } else {
+          resolve();
+        }
       });
     });
     
