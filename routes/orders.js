@@ -74,13 +74,15 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Individual order view
-router.get('/:id', async (req, res) => {
+// UPDATED: Individual order view by order number
+router.get('/:orderNumber', async (req, res) => {
   try {
-    const orderId = req.params.id;
+    const orderNumber = req.params.orderNumber;
+    
+    // Find by order number instead of ID
     const order = await Order.findOne({
       where: { 
-        id: orderId, 
+        orderNumber: orderNumber, 
         userId: req.session.user.id 
       },
       include: [
@@ -96,12 +98,13 @@ router.get('/:id', async (req, res) => {
       return res.status(404).render('error', {
         error: 'Order not found',
         title: 'Order Not Found',
-        user: req.session.user
+        user: req.session.user,
+        details: `Order ${orderNumber} was not found or doesn't belong to you.`
       });
     }
 
     res.render('orders/order_detail', {
-      title: `Order #${order.id} - WeEat`,
+      title: `Order ${order.orderNumber} - WeEat`,
       user: req.session.user,
       order
     });
@@ -115,15 +118,15 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Cancel order
-router.post('/:id/cancel', async (req, res) => {
+// UPDATED: Cancel order by order number
+router.post('/:orderNumber/cancel', async (req, res) => {
   try {
-    const orderId = req.params.id;
+    const orderNumber = req.params.orderNumber;
     const { reason } = req.body;
     
     const order = await Order.findOne({
       where: { 
-        id: orderId, 
+        orderNumber: orderNumber, 
         userId: req.session.user.id 
       }
     });
@@ -160,15 +163,15 @@ router.post('/:id/cancel', async (req, res) => {
   }
 });
 
-// Reorder items
-router.post('/:id/reorder', async (req, res) => {
+// UPDATED: Reorder items by order number
+router.post('/:orderNumber/reorder', async (req, res) => {
   try {
-    const orderId = req.params.id;
+    const orderNumber = req.params.orderNumber;
     const userId = req.session.user.id;
     
     const order = await Order.findOne({
       where: { 
-        id: orderId, 
+        orderNumber: orderNumber, 
         userId: userId 
       }
     });

@@ -216,6 +216,11 @@ router.post('/upload-avatar', requireAuth, upload.single('avatar'), validateFile
     // Update session data
     req.session.user.avatar = avatarUrl;
     
+    // CRITICAL FIX: Also update the user object if it's stored in req
+    if (req.user) {
+      req.user.avatar = avatarUrl;
+    }
+    
     // Force session save and wait for it
     await new Promise((resolve, reject) => {
       req.session.save((err) => {
@@ -223,6 +228,7 @@ router.post('/upload-avatar', requireAuth, upload.single('avatar'), validateFile
           console.error('Session save error:', err);
           reject(err);
         } else {
+          console.log('Session updated with new avatar:', avatarUrl);
           resolve();
         }
       });

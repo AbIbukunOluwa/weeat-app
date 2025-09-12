@@ -13,13 +13,13 @@
       
       <div class="info-grid">
         <div class="info-item">
-          <span class="label">Order ID:</span>
-          <span class="value">#<%= order.id %></span>
+          <span class="label">Order Number:</span>
+          <span class="value"><%= order.orderNumber || 'N/A' %></span>
         </div>
         
         <div class="info-item">
-          <span class="label">Order Number:</span>
-          <span class="value"><%= order.orderNumber || 'N/A' %></span>
+          <span class="label">Order ID:</span>
+          <span class="value">#<%= order.id %></span>
         </div>
         
         <div class="info-item">
@@ -146,22 +146,25 @@
 
     <div class="actions-section">
       <% if (order.status === 'pending' || order.status === 'confirmed') { %>
-        <button onclick="cancelOrder(<%= order.id %>)" class="btn btn-cancel">
+        <!-- CHANGED: Use order.orderNumber instead of order.id -->
+        <button onclick="cancelOrder('<%= order.orderNumber %>')" class="btn btn-cancel">
           ❌ Cancel Order
         </button>
       <% } %>
       
       <% if (order.status === 'delivered') { %>
-        <button onclick="reorderItems(<%= order.id %>)" class="btn btn-reorder">
+        <!-- CHANGED: Use order.orderNumber instead of order.id -->
+        <button onclick="reorderItems('<%= order.orderNumber %>')" class="btn btn-reorder">
           🔄 Reorder Items
         </button>
-        <a href="/reviews?order=<%= order.id %>" class="btn btn-review">
+        <a href="/reviews?order=<%= order.orderNumber %>" class="btn btn-review">
           ⭐ Leave Review
         </a>
       <% } %>
       
       <% if (order.status === 'delivering' || order.status === 'ready') { %>
-        <button onclick="trackOrder(<%= order.id %>)" class="btn btn-track">
+        <!-- CHANGED: Use order.orderNumber instead of order.id -->
+        <button onclick="trackOrder('<%= order.orderNumber %>')" class="btn btn-track">
           📍 Track Order
         </button>
       <% } %>
@@ -170,11 +173,12 @@
 </div>
 
 <script>
-function cancelOrder(orderId) {
+// UPDATED: All functions now use orderNumber instead of orderId
+function cancelOrder(orderNumber) {
   if (confirm('Are you sure you want to cancel this order?')) {
     const reason = prompt('Please tell us why you\'re cancelling:') || 'Customer requested';
     
-    fetch(`/orders/${orderId}/cancel`, {
+    fetch(`/orders/${orderNumber}/cancel`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -197,9 +201,9 @@ function cancelOrder(orderId) {
   }
 }
 
-function reorderItems(orderId) {
+function reorderItems(orderNumber) {
   if (confirm('Add all items from this order to your cart?')) {
-    fetch(`/orders/${orderId}/reorder`, {
+    fetch(`/orders/${orderNumber}/reorder`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -221,8 +225,8 @@ function reorderItems(orderId) {
   }
 }
 
-function trackOrder(orderId) {
-  alert(`📍 Tracking Order #${orderId}\n\nStatus: On the way\nEstimated arrival: 15-20 minutes\nDriver: John D.\nContact: (204) 555-0123`);
+function trackOrder(orderNumber) {
+  alert(`📍 Tracking Order ${orderNumber}\n\nStatus: On the way\nEstimated arrival: 15-20 minutes\nDriver: John D.\nContact: (204) 555-0123`);
 }
 </script>
 

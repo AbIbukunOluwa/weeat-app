@@ -1,4 +1,3 @@
-
 <%- include('../partials/header', { title: title, user: user }) %>
 
 <div class="orders-container">
@@ -28,7 +27,8 @@
         <div class="order-card">
           <div class="order-header">
             <div class="order-info">
-              <h3>Order #<%= order.id %></h3>
+              <!-- CHANGED: Display order number instead of ID -->
+              <h3>Order <%= order.orderNumber %></h3>
               <span class="order-date">
                 <%= new Date(order.createdAt).toLocaleDateString('en-US', { 
                   year: 'numeric', 
@@ -119,25 +119,29 @@
 
           <div class="order-actions">
             <% if (order.status === 'delivered') { %>
-              <button onclick="reorderItems(<%= order.id %>)" class="action-btn reorder">
+              <!-- CHANGED: Pass order.orderNumber instead of order.id -->
+              <button onclick="reorderItems('<%= order.orderNumber %>')" class="action-btn reorder">
                 🔄 Reorder
               </button>
-              <button onclick="leaveReview(<%= order.id %>)" class="action-btn review">
+              <button onclick="leaveReview('<%= order.orderNumber %>')" class="action-btn review">
                 ⭐ Leave Review
               </button>
             <% } else if (order.status === 'pending' || order.status === 'confirmed') { %>
-              <button onclick="cancelOrder(<%= order.id %>)" class="action-btn cancel">
+              <!-- CHANGED: Pass order.orderNumber instead of order.id -->
+              <button onclick="cancelOrder('<%= order.orderNumber %>')" class="action-btn cancel">
                 ❌ Cancel Order
               </button>
             <% } %>
             
             <% if (order.status === 'delivering' || order.status === 'ready') { %>
-              <button onclick="trackOrder(<%= order.id %>)" class="action-btn track">
+              <!-- CHANGED: Pass order.orderNumber instead of order.id -->
+              <button onclick="trackOrder('<%= order.orderNumber %>')" class="action-btn track">
                 📍 Track Order
               </button>
             <% } %>
             
-            <button onclick="viewOrderDetails(<%= order.id %>)" class="action-btn details">
+            <!-- CHANGED: Pass order.orderNumber instead of order.id -->
+            <button onclick="viewOrderDetails('<%= order.orderNumber %>')" class="action-btn details">
               📋 View Details
             </button>
           </div>
@@ -185,9 +189,10 @@
 </div>
 
 <script>
-function reorderItems(orderId) {
+// UPDATED: All functions now use orderNumber instead of orderId
+function reorderItems(orderNumber) {
   if (confirm('Add all items from this order to your cart?')) {
-    fetch(`/orders/${orderId}/reorder`, {
+    fetch(`/orders/${orderNumber}/reorder`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -209,11 +214,11 @@ function reorderItems(orderId) {
   }
 }
 
-function cancelOrder(orderId) {
+function cancelOrder(orderNumber) {
   if (confirm('Are you sure you want to cancel this order?')) {
     const reason = prompt('Please tell us why you\'re cancelling (optional):') || 'Customer requested cancellation';
     
-    fetch(`/orders/${orderId}/cancel`, {
+    fetch(`/orders/${orderNumber}/cancel`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -236,10 +241,10 @@ function cancelOrder(orderId) {
   }
 }
 
-function trackOrder(orderId) {
+function trackOrder(orderNumber) {
   // Enhanced tracking simulation
   const trackingInfo = {
-    orderId: orderId,
+    orderNumber: orderNumber,
     status: 'On the way',
     estimatedTime: '15-25 minutes',
     driver: 'John D.',
@@ -252,7 +257,7 @@ function trackOrder(orderId) {
     ]
   };
   
-  const trackingMessage = `📍 Order #${trackingInfo.orderId} Tracking\n\n` +
+  const trackingMessage = `📍 Order ${trackingInfo.orderNumber} Tracking\n\n` +
     `Status: ${trackingInfo.status}\n` +
     `Estimated delivery: ${trackingInfo.estimatedTime}\n` +
     `Driver: ${trackingInfo.driver}\n` +
@@ -264,12 +269,13 @@ function trackOrder(orderId) {
   alert(trackingMessage);
 }
 
-function leaveReview(orderId) {
-  window.location.href = `/reviews?order=${orderId}`;
+function leaveReview(orderNumber) {
+  window.location.href = `/reviews?order=${orderNumber}`;
 }
 
-function viewOrderDetails(orderId) {
-  window.location.href = `/orders/${orderId}`;
+function viewOrderDetails(orderNumber) {
+  // CHANGED: This now creates URLs like /orders/WE24120512345
+  window.location.href = `/orders/${orderNumber}`;
 }
 
 // Auto-refresh for active orders
