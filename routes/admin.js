@@ -133,6 +133,118 @@ router.post('/phishing-demo/send', complexAdminCheck, async (req, res) => {
   }
 });
 
+
+// Admin order management page
+router.get('/orders', complexAdminCheck, async (req, res) => {
+  try {
+    const orders = await Order.findAll({
+      include: [{ model: User, as: 'customer' }],
+      order: [['createdAt', 'DESC']],
+      limit: 50
+    });
+    
+    res.render('admin/orders', {
+      title: 'Order Management',
+      user: req.session.user,
+      orders: orders
+    });
+  } catch (err) {
+    console.error('Admin orders error:', err);
+    res.status(500).render('error', {
+      error: 'Failed to load orders',
+      title: 'Error',
+      user: req.session.user
+    });
+  }
+});
+
+// Update order status
+router.post('/orders/:orderId/status', complexAdminCheck, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { newStatus, skipValidation } = req.body;
+    
+    const order = await Order.findByPk(orderId);
+    
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    // Admin can skip validation and force any status
+    if (skipValidation === 'true' || req.session.user.role === 'admin') {
+      order.status = newStatus;
+      
+      if (newStatus === 'delivered') {
+        order.actualDelivery = new Date();
+      }
+      
+      await order.save();
+      
+      return res.json({
+        success: true,
+        message: `Order #${order.orderNumber} status changed to ${newStatus}`,
+        order: {
+          id: order.id,
+          orderNumber: order.orderNumber,
+          status: order.status
+        }
+      });
+    }
+    
+    // Use the model's updateStatus method for validation
+    await order.updateStatus(newStatus);
+    
+    res.json({
+      success: true,
+      message: `Order #${order.orderNumber} status updated to ${newStatus}`,
+      order: {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        status: order.status
+      }
+    });
+    
+  } catch (err) {
+    console.error('Status update error:', err);
+    res.status(500).json({ 
+      error: err.message || 'Failed to update order status'
+    });
+  }
+});
+
+// Bulk update orders
+router.post('/orders/bulk-status', complexAdminCheck, async (req, res) => {
+  try {
+    const { orderIds, newStatus } = req.body;
+    
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({ error: 'Order IDs required' });
+    }
+    
+    // Admin bypass - directly update all orders
+    await Order.update(
+      { 
+        status: newStatus,
+        actualDelivery: newStatus === 'delivered' ? new Date() : null
+      },
+      { 
+        where: { id: orderIds } 
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: `${orderIds.length} orders updated to ${newStatus}`,
+      updatedOrders: orderIds
+    });
+    
+  } catch (err) {
+    console.error('Bulk update error:', err);
+    res.status(500).json({ error: 'Bulk update failed' });
+  }
+});
+
+
 // VULNERABILITY A03: Advanced SQL injection in user search
 router.get('/users', complexAdminCheck, async (req, res) => {
   try {
