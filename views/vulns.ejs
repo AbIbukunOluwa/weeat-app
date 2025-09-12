@@ -1,32 +1,329 @@
-<%- include('partials/header') %>
+<%- include('partials/header', { title: title, user: user }) %>
 
-<h2>WeEat Vulnerability Tracker</h2>
-<p>Submit flags to mark vulnerabilities as "found". This page lists severity and whether it’s been found.</p>
+<div class="vulns-container">
+  <div class="vulns-header">
+    <h1>🔒 WeEat Security Testing Challenge</h1>
+    <p>Find and exploit vulnerabilities in this application</p>
+  </div>
 
-<% if (message) { %>
-  <p style="color: green; font-weight: bold;"><%= message %></p>
-<% } %>
-<% if (error) { %>
-  <p style="color: red; font-weight: bold;"><%= error %></p>
-<% } %>
+  <% if (message) { %>
+    <div class="alert success"><%= message %></div>
+  <% } %>
+  <% if (error) { %>
+    <div class="alert error"><%= error %></div>
+  <% } %>
 
-<form action="/vulns/submit" method="POST">
-  <input type="text" name="code" placeholder="Enter flag code" required>
-  <input type="submit" value="Submit Flag">
-</form>
+  <!-- Stats Section -->
+  <div class="stats-section">
+    <div class="stat-card">
+      <span class="stat-number"><%= vulns.length %></span>
+      <span class="stat-label">Total Vulnerabilities</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-number"><%= vulns.filter(v => v.resolved).length %></span>
+      <span class="stat-label">Found</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-number"><%= vulns.filter(v => !v.resolved).length %></span>
+      <span class="stat-label">Remaining</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-number"><%= vulns.length > 0 ? Math.round((vulns.filter(v => v.resolved).length / vulns.length) * 100) : 0 %>%</span>
+      <span class="stat-label">Progress</span>
+    </div>
+  </div>
 
-<hr>
+  <!-- Submit Flag Form -->
+  <div class="submit-section">
+    <h2>Submit Flag</h2>
+    <p>Enter the flag code you discovered during your testing</p>
+    <form action="/vulns/submit" method="POST" class="flag-form">
+      <input type="text" name="code" placeholder="Enter flag code (e.g., SQLI_001)" required>
+      <button type="submit">Submit Flag</button>
+    </form>
+  </div>
 
-<ul>
-  <% vulns.forEach(v => { %>
-    <li>
-      <strong><%= v.title %></strong> — <em><%= v.severity %></em> |
-      Status: <%= v.found ? '✅ Found' : '❌ Not found' %>
-      <% if (v.found && v.foundAt) { %>
-        — <small>Found at <%= new Date(v.foundAt).toLocaleString() %></small>
+  <!-- Vulnerabilities List -->
+  <div class="vulns-list">
+    <h2>Vulnerability Status Board</h2>
+    
+    <!-- Group by severity -->
+    <% ['Critical', 'High', 'Medium', 'Low'].forEach(severity => { %>
+      <% const severityVulns = vulns.filter(v => v.severity === severity); %>
+      <% if (severityVulns.length > 0) { %>
+        <div class="severity-group">
+          <h3 class="severity-<%= severity.toLowerCase() %>">
+            <%= severity %> Severity (<%= severityVulns.length %>)
+          </h3>
+          <div class="vulns-grid">
+            <% severityVulns.forEach(vuln => { %>
+              <div class="vuln-card <%= vuln.resolved ? 'resolved' : '' %>">
+                <div class="vuln-header">
+                  <span class="vuln-status">
+                    <%= vuln.resolved ? '✅' : '❌' %>
+                  </span>
+                  <span class="vuln-severity severity-<%= vuln.severity.toLowerCase() %>">
+                    <%= vuln.severity %>
+                  </span>
+                </div>
+                <h4><%= vuln.title %></h4>
+                <p class="vuln-description"><%= vuln.description %></p>
+                <% if (vuln.resolved && vuln.resolvedAt) { %>
+                  <div class="resolved-info">
+                    ✓ Found at: <%= new Date(vuln.resolvedAt).toLocaleString() %>
+                  </div>
+                <% } else { %>
+                  <div class="not-found-info">
+                    Status: Not Found
+                  </div>
+                <% } %>
+              </div>
+            <% }) %>
+          </div>
+        </div>
       <% } %>
-    </li>
-  <% }) %>
-</ul>
+    <% }) %>
+  </div>
+</div>
+
+<style>
+.vulns-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 30px 20px;
+}
+
+.vulns-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.vulns-header h1 {
+  color: var(--primary-red);
+  font-size: 2.5em;
+  margin-bottom: 10px;
+}
+
+.vulns-header p {
+  color: #666;
+  font-size: 1.2em;
+}
+
+.alert {
+  padding: 15px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.alert.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.alert.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.stats-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.stat-card {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+
+.stat-number {
+  display: block;
+  font-size: 2.5em;
+  font-weight: bold;
+  color: var(--primary-red);
+  margin-bottom: 5px;
+}
+
+.stat-label {
+  color: #666;
+  font-size: 0.95em;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.submit-section {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  margin-bottom: 40px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  text-align: center;
+}
+
+.submit-section h2 {
+  color: var(--primary-red);
+  margin-bottom: 10px;
+}
+
+.submit-section p {
+  color: #666;
+  margin-bottom: 20px;
+}
+
+.flag-form {
+  display: flex;
+  gap: 15px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.flag-form input {
+  flex: 1;
+  padding: 12px 20px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: monospace;
+}
+
+.flag-form button {
+  padding: 12px 30px;
+  background: var(--primary-red);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.flag-form button:hover {
+  background: #b91c1c;
+}
+
+.vulns-list {
+  margin-bottom: 40px;
+}
+
+.vulns-list h2 {
+  color: var(--primary-red);
+  margin-bottom: 30px;
+  text-align: center;
+  font-size: 1.8em;
+}
+
+.severity-group {
+  margin-bottom: 30px;
+}
+
+.severity-group h3 {
+  margin-bottom: 20px;
+  padding: 10px 15px;
+  border-radius: 8px;
+  color: white;
+}
+
+.severity-critical { background: #dc3545; }
+.severity-high { background: #fd7e14; }
+.severity-medium { background: #ffc107; color: #333; }
+.severity-low { background: #28a745; }
+
+.vulns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.vuln-card {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  transition: all 0.3s;
+  border: 2px solid #e0e0e0;
+}
+
+.vuln-card.resolved {
+  border-color: #28a745;
+  background: #f8fff9;
+}
+
+.vuln-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+}
+
+.vuln-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.vuln-status {
+  font-size: 1.5em;
+}
+
+.vuln-severity {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.vuln-card h4 {
+  color: #333;
+  margin: 10px 0;
+  font-size: 1.1em;
+}
+
+.vuln-description {
+  color: #666;
+  font-size: 0.95em;
+  line-height: 1.5;
+  margin-bottom: 15px;
+}
+
+.resolved-info {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e0e0e0;
+  color: #28a745;
+  font-size: 0.85em;
+  font-weight: bold;
+}
+
+.not-found-info {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e0e0e0;
+  color: #999;
+  font-size: 0.85em;
+}
+
+@media (max-width: 768px) {
+  .vulns-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .flag-form {
+    flex-direction: column;
+  }
+  
+  .stats-section {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+</style>
 
 <%- include('partials/footer') %>
