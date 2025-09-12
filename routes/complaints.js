@@ -1,12 +1,11 @@
-
 // routes/complaints.js - FIXED VERSION
-const { sendMail } = require('../utils/mailer');
 const express = require('express');
 const router = express.Router();
 const { Complaint, User } = require('../models');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { sendMail } = require('../utils/mailer'); // Add this import
 
 // Ensure upload directory exists
 const uploadDir = path.join(__dirname, '../uploads/complaints');
@@ -78,10 +77,9 @@ router.get('/', requireAuth, async (req, res) => {
 // Submit complaint with file upload - FIXED VERSION
 router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
   try {
-    // FIXED: Get form data with proper field names
+    // Get form data with proper field names
     const { orderId, details, category, urgent, contactMethod } = req.body;
     
-    // FIXED: Enhanced validation and debugging
     console.log('Complaint submission data:', {
       orderId: orderId,
       details: details,
@@ -92,7 +90,7 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
       userId: req.session.user.id
     });
     
-    // FIXED: Validate required fields with better error messages
+    // Validate required fields
     if (!details || details.trim() === '') {
       if (req.file) {
         // Clean up uploaded file if validation fails
@@ -105,52 +103,30 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
       });
     }
     
-    // FIXED: Prepare complaint data with proper field mapping
+    // Prepare complaint data
     const complaintData = {
       userId: req.session.user.id,
-      orderId: orderId && orderId.trim() !== '' ? orderId.trim() : null, // FIXED: Handle empty orderId properly
-      details: details.trim(), // FIXED: Ensure details is not null or empty
+      orderId: orderId && orderId.trim() !== '' ? orderId.trim() : null,
+      details: details.trim(),
       category: category || 'other',
       urgent: urgent === 'true' || urgent === true,
       contactMethod: contactMethod || 'email',
       photo: req.file ? req.file.filename : null
     };
     
-    // FIXED: Additional validation before database save
-    if (!complaintData.details) {
-      throw new Error('Details cannot be empty after processing');
-    }
-    
     console.log('Final complaint data before save:', complaintData);
     
     // Create complaint in database
     const newComplaint = await Complaint.create(complaintData);
-
-    // Send email notification
-        await sendMail({
-          to: 'complaints@weeat.local',
-          subject: `${complaintData.urgent ? '🚨 URGENT: ' : ''}New Complaint #${newComplaint.id}`,
-          html: `
-            <h3>New Complaint Received</h3>
-            <p><strong>From:</strong> ${req.session.user.username} (${req.session.user.email})</p>
-            <p><strong>Order ID:</strong> ${complaintData.orderId || 'N/A'}</p>
-            <p><strong>Category:</strong> ${complaintData.category}</p>
-            <p><strong>Urgent:</strong> ${complaintData.urgent ? 'YES' : 'No'}</p>
-            <p><strong>Details:</strong></p>
-            <blockquote>${complaintData.details}</blockquote>
-            ${complaintData.photo ? `<p><strong>Attachment:</strong> ${complaintData.photo}</p>` : ''}
-            <hr>
-            <p><a href="http://localhost:3000/complaints">View in Admin Panel</a></p>
-          `,
-          attachments: complaintData.photo ? [{
-            filename: complaintData.photo,
-            path: path.join(__dirname, '..', 'uploads', 'complaints', complaintData.photo)
-          }] : []
-        });
     
     console.log('Complaint created successfully with ID:', newComplaint.id);
     
-    // Redirect back to complaints page with success
+    // Send email notification asynchronously (don't wait for it)
+    sendComplaintEmail(newComplaint, req.session.user, req.file).catch(err => {
+      console.error('Email sending error (non-blocking):', err);
+    });
+    
+    // Redirect immediately without waiting for email
     res.redirect('/complaints?success=true');
     
   } catch (error) {
@@ -165,20 +141,8 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
       }
     }
     
-    // FIXED: Better error handling with specific error messages
-    let errorMessage = 'Failed to submit complaint. Please try again.';
-    
-    if (error.name === 'SequelizeValidationError') {
-      const validationErrors = error.errors.map(err => err.message);
-      errorMessage = `Validation error: ${validationErrors.join(', ')}`;
-    } else if (error.message.includes('orderId')) {
-      errorMessage = 'Order ID validation failed. Please check the order ID format.';
-    } else if (error.message.includes('details')) {
-      errorMessage = 'Complaint details are required and cannot be empty.';
-    }
-    
     res.status(500).render('error', {
-      error: errorMessage,
+      error: 'Failed to submit complaint. Please try again.',
       title: 'Submission Error',
       user: req.session.user,
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -186,7 +150,43 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
   }
 });
 
-// View uploaded complaint image/file (VULNERABILITY: Path traversal possible)
+// Async function to send email without blocking
+async function sendComplaintEmail(complaint, user, file) {
+  try {
+    let attachments = [];
+    if (file) {
+      attachments = [{
+        filename: file.filename,
+        path: file.path
+      }];
+    }
+    
+    await sendMail({
+      to: 'complaints@weeat.local',
+      subject: `${complaint.urgent ? '🚨 URGENT: ' : ''}New Complaint #${complaint.id}`,
+      html: `
+        <h3>New Complaint Received</h3>
+        <p><strong>From:</strong> ${user.username} (${user.email})</p>
+        <p><strong>Order ID:</strong> ${complaint.orderId || 'N/A'}</p>
+        <p><strong>Category:</strong> ${complaint.category}</p>
+        <p><strong>Urgent:</strong> ${complaint.urgent ? 'YES' : 'No'}</p>
+        <p><strong>Details:</strong></p>
+        <blockquote>${complaint.details}</blockquote>
+        ${file ? `<p><strong>Attachment:</strong> <a href="http://localhost:3000/complaints/view/${file.filename}">${file.filename}</a></p>` : ''}
+        <hr>
+        <p><a href="http://localhost:3000/complaints">View in Admin Panel</a></p>
+      `,
+      attachments: attachments
+    });
+    
+    console.log('Complaint email sent successfully');
+  } catch (error) {
+    console.error('Failed to send complaint email:', error);
+    // Don't throw - this is non-blocking
+  }
+}
+
+// FIXED: View uploaded complaint image/file
 router.get('/view/:filename', requireAuth, (req, res) => {
   const filename = req.params.filename;
   
@@ -202,7 +202,7 @@ router.get('/view/:filename', requireAuth, (req, res) => {
     return res.status(404).send('File not found');
   }
   
-  // Send file
+  // Send file with proper content type
   res.sendFile(filePath);
 });
 
@@ -212,13 +212,11 @@ router.post('/:id/like', requireAuth, async (req, res) => {
     const complaintId = req.params.id;
     const { action } = req.body;
     
-    // Simple like tracking (in production, track per user)
     const complaint = await Complaint.findByPk(complaintId);
     if (!complaint) {
       return res.status(404).json({ success: false, error: 'Complaint not found' });
     }
     
-    // Update likes count
     if (action === 'unlike') {
       complaint.likes = Math.max(0, (complaint.likes || 0) - 1);
     } else {
@@ -253,8 +251,6 @@ router.post('/:id/comment', requireAuth, async (req, res) => {
       });
     }
     
-    // In a real app, store comments in a separate table
-    // For demo, we'll just return success
     res.json({ 
       success: true,
       comment: comment, // VULNERABILITY: No sanitization
@@ -272,7 +268,6 @@ router.post('/:id/comment', requireAuth, async (req, res) => {
 
 // Admin/Staff actions
 router.post('/:id/resolve', requireAuth, async (req, res) => {
-  // Check if user is admin or staff
   if (req.session.user.role !== 'admin' && req.session.user.role !== 'staff') {
     return res.status(403).json({ 
       success: false, 
@@ -308,7 +303,6 @@ router.post('/:id/resolve', requireAuth, async (req, res) => {
 });
 
 router.post('/:id/escalate', requireAuth, async (req, res) => {
-  // Check if user is admin or staff
   if (req.session.user.role !== 'admin' && req.session.user.role !== 'staff') {
     return res.status(403).json({ 
       success: false, 

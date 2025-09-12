@@ -4,6 +4,7 @@ const path = require('path');
 const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const morgan = require('morgan');
+const favicon = require('serve-favicon'); 
 
 const { sequelize, pgPool } = require('./config/db');
 const { User, Order, Complaint, Vulnerability, Food } = require('./models');
@@ -47,6 +48,8 @@ if (process.env.NODE_ENV !== 'production') {
     next();
   });
 }
+
+app.use(favicon(path.join(__dirname, 'public', 'favicon.ico')));
 
 // Views + static
 app.set('view engine', 'ejs');

@@ -127,20 +127,21 @@
                 <%= complaint.details %>
               </div>
 
-              <% if (complaint.photo) { %>
+            <% if (complaint.photo) { %>
                 <div class="complaint-attachments">
                   <h4>📎 Attachments:</h4>
                   <% if (complaint.photo.match(/\.(jpg|jpeg|png|gif|svg)$/i)) { %>
-                    <img src="/uploads/<%= complaint.photo %>" 
+                    <!-- FIXED: Use proper route for viewing images -->
+                    <img src="/complaints/view/<%= complaint.photo %>" 
                          alt="Complaint Evidence" 
                          class="complaint-image"
-                         onclick="openImageModal(this.src)">
+                         onclick="openImageModal('/complaints/view/<%= complaint.photo %>')">
                   <% } else if (complaint.photo.match(/\.pdf$/i)) { %>
-                    <a href="/uploads/<%= complaint.photo %>" target="_blank" class="attachment-link">
+                    <a href="/complaints/view/<%= complaint.photo %>" target="_blank" class="attachment-link">
                       📄 View PDF Document
                     </a>
                   <% } else { %>
-                    <a href="/uploads/<%= complaint.photo %>" download class="attachment-link">
+                    <a href="/complaints/view/<%= complaint.photo %>" download class="attachment-link">
                       📁 Download Attachment
                     </a>
                   <% } %>
@@ -334,7 +335,7 @@ function openImageModal(src) {
   const captionText = document.getElementById('caption');
   
   modal.style.display = 'block';
-  modalImg.src = src;
+  modalImg.src = src;  // src is already the full path now
   captionText.innerHTML = src.split('/').pop();
 }
 
