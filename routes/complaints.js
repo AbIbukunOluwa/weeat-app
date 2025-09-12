@@ -1,5 +1,6 @@
 
 // routes/complaints.js - FIXED VERSION
+const { sendMail } = require('../utils/mailer');
 const express = require('express');
 const router = express.Router();
 const { Complaint, User } = require('../models');
@@ -124,6 +125,28 @@ router.post('/', requireAuth, upload.single('photo'), async (req, res) => {
     
     // Create complaint in database
     const newComplaint = await Complaint.create(complaintData);
+
+    // Send email notification
+        await sendMail({
+          to: 'complaints@weeat.local',
+          subject: `${complaintData.urgent ? '🚨 URGENT: ' : ''}New Complaint #${newComplaint.id}`,
+          html: `
+            <h3>New Complaint Received</h3>
+            <p><strong>From:</strong> ${req.session.user.username} (${req.session.user.email})</p>
+            <p><strong>Order ID:</strong> ${complaintData.orderId || 'N/A'}</p>
+            <p><strong>Category:</strong> ${complaintData.category}</p>
+            <p><strong>Urgent:</strong> ${complaintData.urgent ? 'YES' : 'No'}</p>
+            <p><strong>Details:</strong></p>
+            <blockquote>${complaintData.details}</blockquote>
+            ${complaintData.photo ? `<p><strong>Attachment:</strong> ${complaintData.photo}</p>` : ''}
+            <hr>
+            <p><a href="http://localhost:3000/complaints">View in Admin Panel</a></p>
+          `,
+          attachments: complaintData.photo ? [{
+            filename: complaintData.photo,
+            path: path.join(__dirname, '..', 'uploads', 'complaints', complaintData.photo)
+          }] : []
+        });
     
     console.log('Complaint created successfully with ID:', newComplaint.id);
     

@@ -98,6 +98,41 @@ router.get('/', complexAdminCheck, async (req, res) => {
   }
 });
 
+// Add this to admin routes for phishing demos
+router.get('/phishing-demo', complexAdminCheck, async (req, res) => {
+  const users = await User.findAll({ limit: 10 });
+  
+  res.render('admin/phishing-demo', {
+    title: 'Phishing Demonstration',
+    user: req.session.user,
+    users: users
+  });
+});
+
+router.post('/phishing-demo/send', complexAdminCheck, async (req, res) => {
+  const { targetUserId, template } = req.body;
+  const { sendPhishingDemo } = require('../utils/mailer');
+  
+  try {
+    const targetUser = await User.findByPk(targetUserId);
+    
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    await sendPhishingDemo(targetUser.email, targetUser.username);
+    
+    res.json({
+      success: true,
+      message: `Phishing demo email sent to ${targetUser.email}`,
+      note: 'Check Mailhog at http://localhost:8025 to see the email'
+    });
+    
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to send phishing demo' });
+  }
+});
+
 // VULNERABILITY A03: Advanced SQL injection in user search
 router.get('/users', complexAdminCheck, async (req, res) => {
   try {
