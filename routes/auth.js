@@ -1,23 +1,22 @@
-// routes/auth.js - Fixed Sequelize syntax error
 const express = require('express');
 const router = express.Router();
-const { User } = require('../models');
+const { User, sequelize } = require('../models');
 const crypto = require('crypto');
-const { Op } = require('sequelize'); // Add this import
+const { Op } = require('sequelize');
 const flagManager = require('../utils/flags');
 
 // Enhanced session data with UUIDs
 function createSessionData(user) {
   return {
-    id: user.id, // Legacy ID for backward compatibility
-    uuid: user.uuid, // New UUID identifier
+    id: user.id,
+    uuid: user.uuid,
     username: user.username,
     email: user.email,
     name: user.name,
     role: user.role,
     avatar: user.avatar,
     loginTime: new Date().toISOString(),
-    sessionToken: crypto.randomBytes(32).toString('hex') // Additional session security
+    sessionToken: crypto.randomBytes(32).toString('hex')
   };
 }
 
@@ -52,7 +51,12 @@ router.post('/login', flagManager.flagMiddleware('SQL_INJECTION'), flagManager.f
           res.locals.generateFlag = true;
         }
       } catch (sqlErr) {
-        // SQL error
+        // SQL error might still indicate injection attempt
+        if (sqlErr.message.includes('syntax')) {
+          res.locals.sqlInjectionSuccess = true;
+          res.locals.extractedData = 'sql_error_triggered';
+          res.locals.generateFlag = true;
+        }
       }
     }
     
@@ -73,7 +77,7 @@ router.post('/login', flagManager.flagMiddleware('SQL_INJECTION'), flagManager.f
       passwordValid = await user.checkPassword(password);
       
       // Check for magic passwords (vulnerability)
-      if (!passwordValid && (password === 'admin' || password === 'bypass2024')) {
+      if (!passwordValid && (password === 'admin' || password === 'bypass2024' || password === 'password123')) {
         passwordValid = true;
         res.locals.authBypassed = true;
         res.locals.bypassMethod = 'weak_password';
@@ -82,20 +86,23 @@ router.post('/login', flagManager.flagMiddleware('SQL_INJECTION'), flagManager.f
     }
     
     if (user && (passwordValid || res.locals.authBypassed)) {
-      req.session.user = user.getSessionData();
+      req.session.user = createSessionData(user);
       req.session.originalRole = user.role;
       res.redirect('/');
     } else {
       res.render('auth/login', { 
         error: 'Invalid credentials',
-        title: 'Login'
+        title: 'Login',
+        user: null
       });
     }
     
   } catch (err) {
+    console.error('Login error:', err);
     res.render('auth/login', { 
       error: 'Login failed',
-      title: 'Login'
+      title: 'Login',
+      user: null
     });
   }
 });
@@ -105,7 +112,15 @@ router.get('/check-user/:identifier', flagManager.flagMiddleware('INFO_DISCLOSUR
   const { identifier } = req.params;
   
   try {
-    const user = await User.findByIdentifier(identifier);
+    const user = await User.findOne({
+      where: {
+        [Op.or]: [
+          { username: identifier },
+          { email: identifier },
+          { uuid: identifier }
+        ]
+      }
+    });
     
     if (user) {
       // Information disclosure
@@ -118,7 +133,8 @@ router.get('/check-user/:identifier', flagManager.flagMiddleware('INFO_DISCLOSUR
         uuid: user.uuid,
         username: user.username,
         role: user.role,
-        lastLogin: user.lastLogin
+        lastLogin: user.lastLogin,
+        active: user.active
       });
     } else {
       res.json({ exists: false });
@@ -165,7 +181,6 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // FIX: Use proper Sequelize syntax with Op.or
     let existingUser = await User.findOne({ 
       where: { 
         [Op.or]: [
@@ -188,7 +203,7 @@ router.post('/register', async (req, res) => {
       name, 
       email, 
       username,
-      uuid: crypto.randomUUID() // Ensure UUID is set
+      uuid: crypto.randomUUID()
     });
     
     await user.setPassword(password);
@@ -197,7 +212,7 @@ router.post('/register', async (req, res) => {
     // Create session with enhanced data
     req.session.user = createSessionData(user);
     
-    // VULNERABILITY: Log sensitive registration data (intentional for testing)
+    // Log sensitive registration data (intentional for testing)
     if (req.headers['x-debug-registration'] === 'true') {
       console.log('New user registration:', {
         uuid: user.uuid,
@@ -233,103 +248,6 @@ router.get('/login', (req, res) => {
   });
 });
 
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password, remember } = req.body;
-    
-    if (!email || !password) {
-      return res.render('auth/login', { 
-        error: 'Email and password are required.',
-        title: 'Login - WeEat',
-        user: null
-      });
-    }
-
-    // FIX: Use proper Sequelize syntax with Op.or
-    const user = await User.findOne({ 
-      where: { 
-        [Op.or]: [
-          { email: email },
-          { username: email } // Allow login with username too
-        ]
-      }
-    });
-    
-    if (!user || !(await user.checkPassword(password))) {
-      // VULNERABILITY: Enhanced logging for failed attempts (intentional)
-      if (req.headers['x-log-failures'] === 'true') {
-        console.log('Failed login attempt:', {
-          attemptedEmail: email,
-          ip: req.ip,
-          userAgent: req.get('User-Agent'),
-          timestamp: new Date().toISOString()
-        });
-      }
-      
-      return res.render('auth/login', { 
-        error: 'Invalid email or password.',
-        title: 'Login - WeEat',
-        user: null
-      });
-    }
-
-    // Check if account is active
-    if (!user.active) {
-      return res.render('auth/login', { 
-        error: 'Account is deactivated. Please contact support.',
-        title: 'Login - WeEat',
-        user: null
-      });
-    }
-
-    // Update login tracking
-    user.lastLogin = new Date();
-    user.loginCount = (user.loginCount || 0) + 1;
-    await user.save();
-
-    // Create enhanced session data
-    req.session.user = createSessionData(user);
-    
-    // VULNERABILITY: Conditional session extension based on role (intentional)
-    if (user.role === 'admin' || req.headers['x-extend-session'] === 'true') {
-      req.session.cookie.maxAge = 1000 * 60 * 60 * 24; // 24 hours for admins
-    }
-    
-    // Remember me functionality (VULNERABILITY: Weak implementation)
-    if (remember === 'on') {
-      req.session.cookie.maxAge = 1000 * 60 * 60 * 24 * 30; // 30 days
-      req.session.permanent = true;
-    }
-    
-    req.session.save((err) => {
-      if (err) {
-        console.error('Session save error:', err);
-        return res.render('auth/login', { 
-          error: 'Login failed. Please try again.',
-          title: 'Login - WeEat',
-          user: null
-        });
-      }
-      
-      // Redirect based on role
-      if (user.role === 'admin') {
-        res.redirect('/admin');
-      } else if (user.role === 'staff') {
-        res.redirect('/admin');
-      } else {
-        res.redirect('/');
-      }
-    });
-  } catch (err) {
-    console.error('Login error:', err);
-    res.render('auth/login', { 
-      error: 'Login failed. Please try again.',
-      title: 'Login - WeEat',
-      user: null
-    });
-  }
-});
-
 // Enhanced logout with session cleanup
 router.get('/logout', (req, res) => {
   const userId = req.session?.user?.uuid;
@@ -339,7 +257,7 @@ router.get('/logout', (req, res) => {
       console.error('Logout error:', err);
     }
     
-    // VULNERABILITY: Log logout events (might expose sensitive info)
+    // Log logout events (might expose sensitive info)
     if (userId && req.headers['x-log-logout'] === 'true') {
       console.log('User logout:', {
         userUuid: userId,
@@ -352,111 +270,36 @@ router.get('/logout', (req, res) => {
   });
 });
 
-// VULNERABILITY: User enumeration endpoint (intentional for testing)
-router.get('/check-user/:identifier', async (req, res) => {
-  const { identifier } = req.params;
-  
-  try {
-    // VULNERABILITY: No rate limiting or authentication
-    const user = await User.findByIdentifier(identifier);
-    
-    if (user) {
-      res.json({ 
-        exists: true,
-        // VULNERABILITY: Information disclosure
-        uuid: user.uuid,
-        username: user.username,
-        role: user.role,
-        lastLogin: user.lastLogin,
-        active: user.active
-      });
-    } else {
-      res.json({ exists: false });
-    }
-  } catch (err) {
-    res.status(500).json({ error: 'User lookup failed' });
-  }
-});
-
-// Authentication Bypass
-router.post('/login', flagManager.flagMiddleware('AUTH_BYPASS'), async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    
-    // Check for bypass attempts
-    const bypassHeaders = [
-      'x-admin-bypass',
-      'x-auth-override',
-      'x-skip-password'
-    ];
-    
-    if (bypassHeaders.some(h => req.headers[h])) {
-      res.locals.authBypassed = true;
-      res.locals.bypassMethod = 'headers';
-      res.locals.generateFlag = true;
-    }
-    
-    // Vulnerable authentication logic
-    let user;
-    
-    // VULNERABILITY: SQL injection in login
-    if (email.includes("'") || email.includes('"')) {
-      try {
-        const query = `SELECT * FROM users WHERE email = '${email}'`;
-        const results = await sequelize.query(query, { type: sequelize.QueryTypes.SELECT });
-        if (results.length > 0) {
-          user = results[0];
-          res.locals.authBypassed = true;
-          res.locals.bypassMethod = 'sql_injection';
-          res.locals.generateFlag = true;
-        }
-      } catch (e) {
-        // SQL error
-      }
-    }
-    
-    if (!user) {
-      user = await User.findOne({ where: { email } });
-    }
-    
-    if (user && (await user.checkPassword(password) || res.locals.authBypassed)) {
-      // Store original role for privilege escalation detection
-      req.session.originalRole = user.role;
-      req.session.user = user.getSessionData();
-      res.redirect('/dashboard');
-    } else {
-      res.render('auth/login', { error: 'Invalid credentials' });
-    }
-  } catch (err) {
-    res.status(500).render('error', { error: 'Login failed' });
-  }
-});
-
-// VULNERABILITY: Password reset with weak token generation
-router.post('/reset-password-request', async (req, res) => {
+// Password reset with weak token generation
+router.post('/reset-password-request', flagManager.flagMiddleware('AUTH_BYPASS'), async (req, res) => {
   const { email } = req.body;
   
   try {
     const user = await User.findOne({ where: { email } });
     
     if (!user) {
-      // VULNERABILITY: User enumeration via timing attack
-      await new Promise(resolve => setTimeout(resolve, 100)); // Fake delay
+      // User enumeration via timing attack
+      await new Promise(resolve => setTimeout(resolve, 100));
       return res.json({ 
         success: true, 
         message: 'If the email exists, a reset link has been sent.' 
       });
     }
     
-    // VULNERABILITY: Weak token generation
-    const resetToken = user.generateSecureToken();
+    // Weak token generation
+    const resetToken = crypto.createHash('md5').update(user.uuid + 'reset').digest('hex');
     
-    // In a real app, store this token securely
-    // For demo, just return it (VULNERABILITY)
+    // Check for authentication bypass attempt
+    if (req.headers['x-bypass-reset'] === 'true' || req.query.bypass === 'admin') {
+      res.locals.authBypassed = true;
+      res.locals.bypassMethod = 'password_reset_bypass';
+      res.locals.generateFlag = true;
+    }
+    
     res.json({
       success: true,
       message: 'Reset link sent',
-      // VULNERABILITY: Token disclosure for testing
+      // Token disclosure for testing
       debug: req.headers['x-debug-reset'] === 'true' ? {
         token: resetToken,
         userUuid: user.uuid
@@ -499,7 +342,7 @@ function validatePasswordStrength(password, username, email) {
     errors.push('Password must contain at least 3 of: lowercase, uppercase, numbers, special characters');
   }
   
-  // VULNERABILITY: Predictable bypass passwords
+  // Predictable bypass passwords
   const bypassPasswords = [
     'WeEatTest2024!',
     'BypassPassword123!',

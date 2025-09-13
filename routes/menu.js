@@ -1,23 +1,25 @@
 const express = require('express');
 const router = express.Router();
-const { Food, sequelize } = require('../models');
+const { Food, CartItem, sequelize } = require('../models');
+const { Op } = require('sequelize');
 const flagManager = require('../utils/flags');
 
 // SQL Injection in menu search
 router.get('/', flagManager.flagMiddleware('SQL_INJECTION'), async (req, res) => {
   try {
-    const { search, category, sort_by = 'id', sort_order = 'ASC' } = req.query;
+    const { search, category, sort_by = 'id', sort_order = 'ASC', price_min, price_max } = req.query;
     
     let foods;
-    let baseQuery = 'SELECT * FROM foods WHERE 1=1';
+    let baseQuery = 'SELECT * FROM foods WHERE status = \'active\'';
     
     if (search) {
       baseQuery += ` AND (name ILIKE '%${search}%' OR description ILIKE '%${search}%')`;
       
       // Detect SQL injection
-      if (search.includes("'") || search.includes('UNION') || search.includes('--')) {
+      if (search.includes("'") || search.includes('UNION') || search.includes('--') || 
+          search.includes('SELECT') || search.includes('/*')) {
         res.locals.sqlInjectionSuccess = true;
-        res.locals.extractedData = 'menu_data';
+        res.locals.extractedData = 'menu_data_accessed';
         res.locals.generateFlag = true;
       }
     }
@@ -26,20 +28,52 @@ router.get('/', flagManager.flagMiddleware('SQL_INJECTION'), async (req, res) =>
       baseQuery += ` AND category = '${category}'`;
     }
     
-    baseQuery += ` ORDER BY ${sort_by} ${sort_order}`;
+    if (price_min) {
+      baseQuery += ` AND price >= ${price_min}`;
+    }
     
-    foods = await sequelize.query(baseQuery, { type: sequelize.QueryTypes.SELECT });
+    if (price_max) {
+      baseQuery += ` AND price <= ${price_max}`;
+    }
+    
+    baseQuery += ` ORDER BY ${sort_by} ${sort_order} LIMIT 50`;
+    
+    try {
+      foods = await sequelize.query(baseQuery, { type: sequelize.QueryTypes.SELECT });
+      
+      // Additional check for successful data extraction
+      if (foods.length > 0 && search && (search.includes('UNION') || search.includes('SELECT'))) {
+        res.locals.sqlInjectionSuccess = true;
+        res.locals.extractedData = `menu_table_data:${foods.length}_rows`;
+        res.locals.generateFlag = true;
+      }
+    } catch (sqlErr) {
+      // SQL error indicates injection attempt
+      if (sqlErr.message.includes('syntax') || sqlErr.message.includes('relation')) {
+        res.locals.sqlInjectionSuccess = true;
+        res.locals.extractedData = 'sql_error:' + sqlErr.message.substring(0, 30);
+        res.locals.generateFlag = true;
+      }
+      // Fallback to safe query
+      foods = await Food.findAll({ where: { status: 'active' } });
+    }
     
     res.render('menu', { 
       user: req.session.user,
-      foods,
-      title: 'Menu',
+      foods: foods || [],
+      title: 'Menu - WeEat',
       search: search || '',
-      category: category || ''
+      category: category || '',
+      debug: req.headers['x-menu-debug'] === 'true' ? { query: baseQuery } : null
     });
     
   } catch (err) {
-    res.status(500).render('error', { error: 'Menu loading failed' });
+    console.error('Menu error:', err);
+    res.status(500).render('error', { 
+      error: 'Menu loading failed',
+      title: 'Menu Error',
+      user: req.session.user
+    });
   }
 });
 
@@ -50,152 +84,52 @@ router.post('/add-to-cart', flagManager.flagMiddleware('PRICE_MANIPULATION'), as
   }
   
   try {
-    const { foodName, price, quantity = 1 } = req.body;
+    const { foodName, price, quantity = 1, discount_code, bulk_discount } = req.body;
     const userId = req.session.user.id;
     
     // Get actual price from database
     const food = await Food.findOne({ where: { name: foodName } });
     
-    if (food) {
-      const actualPrice = food.price;
-      const submittedPrice = parseFloat(price);
-      
-      // Check for price manipulation
-      if (actualPrice > 0 && (submittedPrice <= 0 || submittedPrice < actualPrice * 0.5)) {
-        res.locals.priceManipulated = true;
-        res.locals.originalPrice = actualPrice;
-        res.locals.manipulatedPrice = submittedPrice;
-        res.locals.generateFlag = true;
-      }
+    if (!food) {
+      return res.status(404).json({ error: 'Food item not found' });
     }
     
-    // Vulnerable: Use client-provided price
-    await CartItem.create({
-      userId,
-      foodName,
-      price: price,  // Using manipulated price!
-      quantity
-    });
-    
-    res.json({ success: true, message: 'Added to cart' });
-    
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to add to cart' });
-  }
-});
-
-// VULNERABILITY A03: Advanced SQL injection with multiple vectors
-router.get('/', async (req, res) => {
-  try {
-    let foods;
-    const { 
-      search, 
-      category, 
-      price_min, 
-      price_max,
-      sort_by = 'id',
-      sort_order = 'ASC',
-      limit = 20,
-      offset = 0,
-      include_inactive = 'false'
-    } = req.query;
-    
-    // VULNERABILITY: Dynamic query building with multiple injection points
-    let baseQuery = 'SELECT * FROM foods WHERE 1=1';
-    
-    if (search) {
-      // VULNERABILITY: Primary injection vector
-      baseQuery += ` AND (name ILIKE '%${search}%' OR description ILIKE '%${search}%')`;
-    }
-    
-    if (category) {
-      // VULNERABILITY: Category filter injection
-      baseQuery += ` AND category = '${category}'`;
-    }
-    
-    if (price_min) {
-      // VULNERABILITY: Price range injection
-      baseQuery += ` AND price >= ${price_min}`;
-    }
-    
-    if (price_max) {
-      baseQuery += ` AND price <= ${price_max}`;
-    }
-    
-    if (include_inactive === 'true') {
-      // VULNERABILITY: Include inactive items with injection potential
-      baseQuery += ` AND status IN ('active', 'inactive')`;
-    } else {
-      baseQuery += ` AND status = 'active'`;
-    }
-    
-    // VULNERABILITY: Sort parameters injectable
-    baseQuery += ` ORDER BY ${sort_by} ${sort_order}`;
-    baseQuery += ` LIMIT ${limit} OFFSET ${offset}`;
-
-    foods = await sequelize.query(baseQuery, { 
-      type: sequelize.QueryTypes.SELECT 
-    });
-
-    // VULNERABILITY: Expose query details conditionally
-    const debugInfo = req.headers['x-menu-debug'] === 'true' || 
-                     req.query.debug_sql === '1' ? {
-      query: baseQuery,
-      parameters: req.query,
-      result_count: foods.length
-    } : null;
-
-    res.render('menu', { 
-      user: req.session.user, 
-      foods: foods || [],
-      title: 'Menu - WeEat',
-      search: search || '',
-      category: category || '',
-      debug: debugInfo
-    });
-  } catch (err) {
-    console.error('Menu error:', err);
-    res.status(500).render('error', { 
-      error: 'Menu loading failed',
-      message: req.headers['x-menu-debug'] === 'true' ? err.message : null,
-      sql: req.headers['x-menu-debug'] === 'true' ? err.sql : null,
-      stack: req.headers['x-full-debug'] === 'true' ? err.stack : null,
-      title: 'Menu Error'
-    });
-  }
-});
-
-// VULNERABILITY A08: Advanced price manipulation with business logic flaws
-router.post('/add-to-cart', async (req, res) => {
-  if (!req.session.user) {
-    return res.status(401).json({ error: 'Please login first' });
-  }
-
-  try {
-    const { foodName, price, quantity = 1, discount_code, bulk_discount } = req.body;
-    const userId = req.session.user.id;
-
-    // VULNERABILITY: Multiple price manipulation vectors
+    const actualPrice = food.price;
     let finalPrice = parseFloat(price);
     const originalQuantity = parseInt(quantity);
     
-    // VULNERABILITY: Discount code bypass
+    // Check for price manipulation
+    if (actualPrice > 0 && (finalPrice <= 0 || finalPrice < actualPrice * 0.5)) {
+      res.locals.priceManipulated = true;
+      res.locals.originalPrice = actualPrice;
+      res.locals.manipulatedPrice = finalPrice;
+      res.locals.generateFlag = true;
+    }
+    
+    // Apply discount codes (additional manipulation vector)
     if (discount_code) {
       const discountCodes = {
         'STAFF10': 0.1,
         'VIP20': 0.2,
         'ADMIN50': 0.5,
-        // VULNERABILITY: Hidden discount codes
-        'INTERNAL99': 0.99,
-        'DEBUG100': 1.0
+        'INTERNAL99': 0.99,  // Hidden discount
+        'DEBUG100': 1.0      // Free items
       };
       
       if (discountCodes[discount_code]) {
         finalPrice *= (1 - discountCodes[discount_code]);
+        
+        // Mark extreme discounts as manipulation
+        if (discountCodes[discount_code] >= 0.9) {
+          res.locals.priceManipulated = true;
+          res.locals.originalPrice = actualPrice;
+          res.locals.manipulatedPrice = finalPrice;
+          res.locals.generateFlag = true;
+        }
       }
     }
     
-    // VULNERABILITY: Bulk discount manipulation
+    // Bulk discount manipulation
     if (bulk_discount === 'true' || req.headers['x-bulk-pricing'] === 'enable') {
       if (originalQuantity >= 5) {
         finalPrice *= 0.8; // 20% bulk discount
@@ -205,23 +139,32 @@ router.post('/add-to-cart', async (req, res) => {
       }
     }
     
-    // VULNERABILITY: Staff/Admin pricing override
+    // Staff/Admin pricing override
     if (req.session.user.role === 'staff' && req.headers['x-staff-discount'] === 'true') {
-      finalPrice *= 0.5; // 50% staff discount
+      finalPrice *= 0.5;
+      res.locals.priceManipulated = true;
+      res.locals.originalPrice = actualPrice;
+      res.locals.manipulatedPrice = finalPrice;
+      res.locals.generateFlag = true;
     }
     
     if (req.session.user.role === 'admin' && req.query.admin_price === 'cost') {
       finalPrice = 0.01; // Admin cost price
+      res.locals.priceManipulated = true;
+      res.locals.originalPrice = actualPrice;
+      res.locals.manipulatedPrice = finalPrice;
+      res.locals.generateFlag = true;
     }
     
-    // VULNERABILITY: Negative pricing allowed with header
+    // Negative pricing allowed with header
     if (req.headers['x-allow-negative'] === 'true' && finalPrice < 0) {
-      // Allow negative prices (credits to customer account)
+      res.locals.priceManipulated = true;
+      res.locals.originalPrice = actualPrice;
+      res.locals.manipulatedPrice = finalPrice;
+      res.locals.generateFlag = true;
     } else if (finalPrice < 0) {
       finalPrice = 0.01; // Minimum price fallback
     }
-
-    const { CartItem } = require('../models');
     
     let cartItem = await CartItem.findOne({ 
       where: { userId, foodName } 
@@ -240,22 +183,17 @@ router.post('/add-to-cart', async (req, res) => {
       });
     }
 
-    // VULNERABILITY: Expose pricing logic in debug mode
-    const debugResponse = req.headers['x-cart-debug'] === 'true' ? {
-      original_price: parseFloat(price),
-      final_price: finalPrice,
-      discount_applied: discount_code || 'none',
-      bulk_discount_applied: bulk_discount === 'true',
-      user_role_discount: req.session.user.role !== 'customer',
-      total_savings: parseFloat(price) - finalPrice
-    } : null;
-
     res.json({ 
       success: true, 
       message: `${foodName} added to cart`,
       final_price: finalPrice.toFixed(2),
       quantity: originalQuantity,
-      debug: debugResponse
+      debug: req.headers['x-cart-debug'] === 'true' ? {
+        original_price: actualPrice,
+        final_price: finalPrice,
+        discount_applied: discount_code || 'none',
+        manipulation_detected: res.locals.priceManipulated || false
+      } : null
     });
   } catch (err) {
     console.error('Add to cart error:', err);
@@ -266,53 +204,24 @@ router.post('/add-to-cart', async (req, res) => {
   }
 });
 
-
-// Price Manipulation
-router.post('/add-to-cart', flagManager.flagMiddleware('PRICE_MANIPULATION'), async (req, res) => {
-  try {
-    const { foodName, price, quantity } = req.body;
-    const actualFood = await Food.findOne({ where: { name: foodName } });
-    
-    if (actualFood) {
-      const originalPrice = actualFood.price;
-      const submittedPrice = parseFloat(price);
-      
-      // Check for price manipulation
-      if (originalPrice > 0 && (submittedPrice <= 0 || submittedPrice < originalPrice * 0.5)) {
-        res.locals.priceManipulated = true;
-        res.locals.originalPrice = originalPrice;
-        res.locals.manipulatedPrice = submittedPrice;
-        res.locals.generateFlag = true;
-      }
-    }
-    
-    // Add to cart with manipulated price (vulnerable)
-    await CartItem.create({
-      userId: req.session.user.id,
-      foodName,
-      price: price,  // Using client-provided price
-      quantity
-    });
-    
-    res.json({ success: true, message: 'Added to cart' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to add to cart' });
-  }
-});
-
-// VULNERABILITY A01: IDOR in food details with conditional access
-router.get('/food/:id', async (req, res) => {
+// IDOR in food details
+router.get('/food/:id', flagManager.flagMiddleware('IDOR'), async (req, res) => {
   try {
     const foodId = req.params.id;
     const includeInternal = req.query.include_internal === 'true';
     const showCosts = req.headers['x-show-costs'] === 'true';
     
-    // VULNERABILITY: SQL injection in food ID + additional data exposure
+    // SQL injection in food ID + additional data exposure
     let query = `SELECT * FROM foods WHERE id = ${foodId}`;
     
-    // VULNERABILITY: Include internal/hidden data conditionally
+    // Include internal/hidden data conditionally
     if (includeInternal || req.session?.user?.role === 'staff') {
       query = `SELECT *, cost_price, supplier_info, internal_notes FROM foods WHERE id = ${foodId}`;
+      
+      res.locals.idorSuccess = true;
+      res.locals.accessedResource = `food_internal:${foodId}`;
+      res.locals.originalUser = req.session?.user?.id || 'anonymous';
+      res.locals.generateFlag = true;
     }
 
     const foodResult = await sequelize.query(query, { 
@@ -328,6 +237,13 @@ router.get('/food/:id', async (req, res) => {
     }
 
     const food = foodResult[0];
+    
+    // Check for information disclosure
+    if (food.cost_price || food.supplier_info) {
+      res.locals.sensitiveInfoDisclosed = true;
+      res.locals.disclosedInfo = 'food_internal_data';
+      res.locals.generateFlag = true;
+    }
     
     // Render the food details page
     res.render('menu/food-details', {
@@ -349,8 +265,8 @@ router.get('/food/:id', async (req, res) => {
   }
 });
 
-// VULNERABILITY A03: Review submission with multiple injection vectors
-router.post('/review', async (req, res) => {
+// Review submission with SQL injection
+router.post('/review', flagManager.flagMiddleware('SQL_INJECTION'), async (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ error: 'Login required' });
   }
@@ -365,20 +281,32 @@ router.post('/review', async (req, res) => {
       admin_override = 'false'
     } = req.body;
     
-    // VULNERABILITY: SQL injection in review insertion
+    // SQL injection in review insertion
     const insertQuery = `
       INSERT INTO reviews (food_id, user_id, rating, title, comment, anonymous, created_at, approved) 
       VALUES (${foodId}, ${req.session.user.id}, ${rating}, '${review_title}', '${comment}', ${anonymous === 'true'}, NOW(), ${admin_override === 'true' || req.session.user.role === 'admin'})
     `;
     
-    await sequelize.query(insertQuery);
-
-    // VULNERABILITY: No rate limiting bypass with header
-    if (req.headers['x-skip-review-limit'] !== 'admin-bypass') {
-      // Fake rate limiting that can be bypassed
+    // Detect SQL injection attempts
+    if (review_title?.includes("'") || comment?.includes("'") || 
+        review_title?.includes('UNION') || comment?.includes('UNION')) {
+      res.locals.sqlInjectionSuccess = true;
+      res.locals.extractedData = 'review_injection_attempt';
+      res.locals.generateFlag = true;
+    }
+    
+    try {
+      await sequelize.query(insertQuery);
+    } catch (sqlErr) {
+      if (sqlErr.message.includes('syntax')) {
+        res.locals.sqlInjectionSuccess = true;
+        res.locals.extractedData = 'review_sql_error';
+        res.locals.generateFlag = true;
+      }
+      throw sqlErr;
     }
 
-    // VULNERABILITY: Auto-approve with specific conditions
+    // Auto-approve with specific conditions
     const autoApproved = admin_override === 'true' || 
                         req.session.user.role === 'admin' ||
                         req.headers['x-auto-approve'] === 'true';
@@ -387,7 +315,6 @@ router.post('/review', async (req, res) => {
       success: true, 
       message: 'Review submitted',
       approved: autoApproved,
-      // VULNERABILITY: Expose query details
       debug: req.headers['x-review-debug'] === 'true' ? { 
         query: insertQuery,
         user_role: req.session.user.role,
@@ -405,8 +332,8 @@ router.post('/review', async (req, res) => {
   }
 });
 
-// VULNERABILITY A10: Menu image proxy with SSRF potential
-router.get('/image-proxy', async (req, res) => {
+// Menu image proxy with SSRF potential
+router.get('/image-proxy', flagManager.flagMiddleware('SSRF'), async (req, res) => {
   try {
     const { url, resize, format, cache_bypass } = req.query;
     
@@ -414,7 +341,7 @@ router.get('/image-proxy', async (req, res) => {
       return res.status(400).json({ error: 'Image URL required' });
     }
 
-    // VULNERABILITY: Weak URL validation
+    // Weak URL validation
     const blockedHosts = ['admin', 'database', 'internal'];
     const isBlocked = blockedHosts.some(blocked => url.includes(blocked));
     
@@ -425,9 +352,26 @@ router.get('/image-proxy', async (req, res) => {
       });
     }
 
+    // Check for SSRF attempts
+    const ssrfPatterns = [
+      '127.0.0.1',
+      'localhost',
+      '169.254.169.254',
+      '192.168.',
+      '10.',
+      'file://',
+      'internal'
+    ];
+    
+    if (ssrfPatterns.some(pattern => url.includes(pattern))) {
+      res.locals.ssrfSuccess = true;
+      res.locals.ssrfTarget = url;
+      res.locals.generateFlag = true;
+    }
+
     const fetch = require('node-fetch');
     
-    // VULNERABILITY: Forward authentication headers
+    // Forward authentication headers
     const headers = {
       'User-Agent': req.headers['x-proxy-ua'] || 'WeEat-MenuProxy/1.0'
     };
@@ -449,7 +393,6 @@ router.get('/image-proxy', async (req, res) => {
       return res.status(response.status).json({ 
         error: 'Failed to fetch image',
         status: response.status,
-        // VULNERABILITY: Expose response details
         details: req.headers['x-proxy-debug'] === 'true' ? {
           statusText: response.statusText,
           responseHeaders: Object.fromEntries(response.headers.entries()),
@@ -461,7 +404,7 @@ router.get('/image-proxy', async (req, res) => {
     const imageBuffer = await response.buffer();
     const contentType = response.headers.get('content-type') || 'image/jpeg';
     
-    // VULNERABILITY: Cache bypass exposes more info
+    // Cache bypass exposes more info
     if (cache_bypass === 'true') {
       res.set('Cache-Control', 'no-cache');
       res.set('X-Proxy-Source', url);
@@ -477,7 +420,6 @@ router.get('/image-proxy', async (req, res) => {
       error: 'Image proxy failed',
       url: req.headers['x-proxy-debug'] === 'true' ? req.query.url : null,
       details: req.headers['x-proxy-debug'] === 'true' ? err.message : null,
-      // VULNERABILITY: Expose connection info
       connection: req.headers['x-proxy-debug'] === 'true' ? {
         code: err.code,
         errno: err.errno,
@@ -487,9 +429,9 @@ router.get('/image-proxy', async (req, res) => {
   }
 });
 
-// VULNERABILITY: Hidden menu management endpoint
-router.post('/admin/update-pricing', async (req, res) => {
-  // VULNERABILITY: Complex authorization that can be bypassed
+// Hidden menu management endpoint
+router.post('/admin/update-pricing', flagManager.flagMiddleware('PRIVILEGE_ESCALATION'), async (req, res) => {
+  // Complex authorization that can be bypassed
   const isAdmin = req.session?.user?.role === 'admin';
   const hasApiKey = req.headers['x-pricing-api'] === 'menu-update-2024';
   const hasManagerAccess = req.session?.user?.role === 'staff' && 
@@ -497,6 +439,14 @@ router.post('/admin/update-pricing', async (req, res) => {
   
   if (!isAdmin && !hasApiKey && !hasManagerAccess) {
     return res.status(404).json({ error: 'Endpoint not found' });
+  }
+
+  // Mark privilege escalation if non-admin accessed
+  if (!isAdmin && (hasApiKey || hasManagerAccess)) {
+    res.locals.privilegeEscalated = true;
+    res.locals.escalationMethod = hasApiKey ? 'api-key' : 'manager-override';
+    res.locals.originalRole = req.session?.user?.role || 'anonymous';
+    res.locals.generateFlag = true;
   }
 
   try {
@@ -508,13 +458,20 @@ router.post('/admin/update-pricing', async (req, res) => {
 
     let results = [];
     
-    // VULNERABILITY: SQL injection in bulk price updates
+    // SQL injection in bulk price updates
     for (const [foodId, newPrice] of Object.entries(price_updates)) {
       const updateQuery = `UPDATE foods SET price = ${newPrice}, updated_at = NOW() WHERE id = ${foodId}`;
       
       try {
         await sequelize.query(updateQuery);
         results.push({ food_id: foodId, new_price: newPrice, status: 'updated' });
+        
+        // Detect potential SQL injection
+        if (String(newPrice).includes("'") || String(foodId).includes("'")) {
+          res.locals.sqlInjectionSuccess = true;
+          res.locals.extractedData = 'pricing_update_injection';
+          res.locals.generateFlag = true;
+        }
       } catch (updateErr) {
         results.push({ 
           food_id: foodId, 
@@ -522,10 +479,16 @@ router.post('/admin/update-pricing', async (req, res) => {
           status: 'failed',
           error: updateErr.message
         });
+        
+        if (updateErr.message.includes('syntax')) {
+          res.locals.sqlInjectionSuccess = true;
+          res.locals.extractedData = 'pricing_sql_error';
+          res.locals.generateFlag = true;
+        }
       }
     }
 
-    // VULNERABILITY: Log pricing changes without alerting
+    // Log pricing changes without alerting
     console.log('🏷️ BULK PRICING UPDATE:', {
       updated_by: req.session.user?.username || 'API',
       total_updates: Object.keys(price_updates).length,
@@ -541,7 +504,6 @@ router.post('/admin/update-pricing', async (req, res) => {
       results: results,
       updated_by: req.session.user?.username || 'API',
       timestamp: new Date().toISOString(),
-      // VULNERABILITY: Expose update queries in debug
       debug: req.headers['x-pricing-debug'] === 'true' ? {
         queries_executed: results.length,
         bulk_mode: bulk_operation

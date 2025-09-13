@@ -1,17 +1,13 @@
-// routes/reviews.js - Fixed reviews route
-
 const express = require('express');
 const router = express.Router();
 const { Review, Food, User } = require('../models');
 const flagManager = require('../utils/flags');
 
-// Main reviews page - handles both /reviews and /reviews?order=X
+// Main reviews page
 router.get('/', async (req, res) => {
   try {
     const orderId = req.query.order;
     
-    // If coming from an order, could pre-select food items from that order
-    // For now, just show the reviews page
     const foods = await Food.findAll({
       where: { status: 'active' },
       order: [['name', 'ASC']]
@@ -44,52 +40,11 @@ router.get('/', async (req, res) => {
 });
 
 // Submit review with STORED XSS vulnerability
-router.post('/submit', async (req, res) => {
-  if (!req.session.user) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-
-  try {
-    const { foodId, rating, title, comment } = req.body;
-    
-    // VULNERABILITY: No CSRF token validation
-    // VULNERABILITY: No input sanitization - allows stored XSS
-    const review = await Review.create({
-      foodId: parseInt(foodId),
-      userId: req.session.user.id,
-      rating: parseInt(rating),
-      title: title, // XSS VULNERABILITY - stored without sanitization
-      comment: comment, // XSS VULNERABILITY - stored without sanitization
-      approved: true // Auto-approve for faster testing
-    });
-
-    // VULNERABILITY: Reflect user input in response
-    res.json({ 
-      success: true, 
-      message: `Review "${title}" submitted successfully!`,
-      reviewId: review.id,
-      // VULNERABILITY: Information disclosure
-      debug: {
-        userId: req.session.user.id,
-        sessionId: req.sessionID,
-        timestamp: new Date().toISOString()
-      }
-    });
-  } catch (err) {
-    console.error('Review submission error:', err);
-    res.status(500).json({ 
-      error: 'Failed to submit review',
-      details: err.message 
-    });
-  }
-});
-
-// Stored XSS vulnerability
 router.post('/submit', flagManager.flagMiddleware('XSS_STORED'), async (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
-  
+
   try {
     const { foodId, rating, title, comment } = req.body;
     
@@ -97,15 +52,18 @@ router.post('/submit', flagManager.flagMiddleware('XSS_STORED'), async (req, res
     const xssPatterns = [
       /<script/i,
       /javascript:/i,
-      /onerror=/i,
-      /onload=/i,
-      /onclick=/i,
+      /onerror\s*=/i,
+      /onload\s*=/i,
+      /onclick\s*=/i,
       /<iframe/i,
-      /<img.*src/i,
-      /<svg/i,
-      /alert\(/i,
-      /prompt\(/i,
-      /confirm\(/i
+      /<img.*?onerror/i,
+      /<svg.*?onload/i,
+      /alert\s*\(/i,
+      /prompt\s*\(/i,
+      /confirm\s*\(/i,
+      /document\.cookie/i,
+      /<object/i,
+      /<embed/i
     ];
     
     const hasXSS = xssPatterns.some(pattern => 
@@ -123,28 +81,36 @@ router.post('/submit', flagManager.flagMiddleware('XSS_STORED'), async (req, res
       foodId: parseInt(foodId),
       userId: req.session.user.id,
       rating: parseInt(rating),
-      title: title,    // XSS vulnerability
-      comment: comment, // XSS vulnerability
-      approved: true
+      title: title,    // XSS vulnerability - stored without sanitization
+      comment: comment, // XSS vulnerability - stored without sanitization
+      approved: true // Auto-approve for faster testing
     });
-    
+
     res.json({ 
       success: true, 
-      message: 'Review submitted successfully!',
-      reviewId: review.id
+      message: `Review "${title}" submitted successfully!`,
+      reviewId: review.id,
+      // Information disclosure
+      debug: req.headers['x-review-debug'] === 'true' ? {
+        userId: req.session.user.id,
+        sessionId: req.sessionID,
+        timestamp: new Date().toISOString()
+      } : null
     });
-    
   } catch (err) {
-    res.status(500).json({ error: 'Failed to submit review' });
+    console.error('Review submission error:', err);
+    res.status(500).json({ 
+      error: 'Failed to submit review',
+      details: req.headers['x-review-debug'] === 'true' ? err.message : null
+    });
   }
 });
 
-// Display reviews for specific food with XSS vulnerability (no escaping)
+// Display reviews for specific food (vulnerable to XSS when displaying)
 router.get('/food/:foodId', async (req, res) => {
   try {
     const foodId = req.params.foodId;
     
-    // VULNERABILITY: SQL injection in foodId parameter
     const reviews = await Review.findAll({
       where: { foodId: foodId, approved: true },
       include: [{ model: User, attributes: ['username'] }],
@@ -153,10 +119,11 @@ router.get('/food/:foodId', async (req, res) => {
 
     const food = await Food.findByPk(foodId);
 
+    // The XSS vulnerability is in the view template - reviews are displayed without escaping
     res.render('reviews/food-reviews', { 
       foodId, 
       food,
-      reviews, 
+      reviews, // Reviews contain unescaped HTML/JS from user input
       title: `Reviews for ${food ? food.name : 'Food Item'}`,
       user: req.session.user
     });
@@ -164,75 +131,72 @@ router.get('/food/:foodId', async (req, res) => {
     console.error('Reviews fetch error:', err);
     res.status(500).render('error', { 
       error: 'Failed to load reviews',
-      details: err.message,
-      stack: err.stack,
+      details: req.headers['x-review-debug'] === 'true' ? err.message : null,
       title: 'Error',
       user: req.session.user
     });
   }
 });
 
-
-//XSS vulnerability
-router.post('/submit', flagManager.flagMiddleware('XSS_STORED'), async (req, res) => {
-  if (!req.session.user) {
-    return res.status(401).json({ error: 'Authentication required' });
+// Like a review (CSRF vulnerability)
+router.post('/:id/like', flagManager.flagMiddleware('CSRF'), (req, res) => {
+  // Check for CSRF attack
+  const referer = req.get('Referer') || '';
+  const origin = req.get('Origin') || '';
+  const host = req.get('Host') || '';
+  
+  if (!referer.includes(host) && !origin.includes(host)) {
+    res.locals.csrfSuccess = true;
+    res.locals.csrfAction = 'review_like';
+    res.locals.generateFlag = true;
   }
-
-  try {
-    const { foodId, rating, title, comment } = req.body;
-    
-    // Check for XSS payload
-    const xssPatterns = [
-      /<script/i,
-      /javascript:/i,
-      /onerror=/i,
-      /onload=/i,
-      /<iframe/i,
-      /<img.*src/i
-    ];
-    
-    if (xssPatterns.some(pattern => pattern.test(title) || pattern.test(comment))) {
-      res.locals.xssExecuted = true;
-      res.locals.xssPayload = title + comment;
-      res.locals.generateFlag = true;
-    }
-    
-    // Store review without sanitization (vulnerable)
-    const review = await Review.create({
-      foodId,
-      userId: req.session.user.id,
-      rating,
-      title,    // XSS vulnerability
-      comment,  // XSS vulnerability
-      approved: true
-    });
-    
-    res.json({ success: true, message: 'Review submitted successfully!' });
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to submit review' });
-  }
-});
-
-// Like a review
-router.post('/:id/like', (req, res) => {
-  // VULNERABILITY: No authentication check
-  // VULNERABILITY: No CSRF protection
+  
+  // No authentication check - another vulnerability
+  // No CSRF protection
   res.json({ success: true, message: 'Review liked' });
 });
 
-// Report a review
-router.post('/:id/report', (req, res) => {
+// Report a review (input validation bypass)
+router.post('/:id/report', flagManager.flagMiddleware('XSS_REFLECTED'), (req, res) => {
   const { reason } = req.body;
-  // VULNERABILITY: No validation of report reason
-  res.json({ success: true, message: 'Review reported' });
+  
+  // Check for reflected XSS in reason
+  const xssPatterns = [
+    /<script/i,
+    /javascript:/i,
+    /onerror\s*=/i,
+    /onload\s*=/i
+  ];
+  
+  if (reason && xssPatterns.some(pattern => pattern.test(reason))) {
+    res.locals.reflectedXss = true;
+    res.locals.xssPayload = reason.substring(0, 50);
+    res.locals.generateFlag = true;
+  }
+  
+  // Echo back user input without sanitization (reflected XSS)
+  res.json({ 
+    success: true, 
+    message: `Review reported for: ${reason}`, // Vulnerable: reflects user input
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Admin review management with CSRF vulnerability
-router.post('/admin/approve/:id', (req, res) => {
-  // VULNERABILITY: No CSRF protection on admin actions
+router.post('/admin/approve/:id', flagManager.flagMiddleware('CSRF'), (req, res) => {
   if (!req.session.user || req.session.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  // Check for CSRF
+  const referer = req.get('Referer') || '';
+  const origin = req.get('Origin') || '';
+  const host = req.get('Host') || '';
+  
+  if (!referer.includes(host) && !origin.includes(host)) {
+    res.locals.csrfSuccess = true;
+    res.locals.csrfAction = 'admin_approve_review';
+    res.locals.generateFlag = true;
   }
 
   const reviewId = req.params.id;
@@ -255,10 +219,20 @@ router.post('/admin/approve/:id', (req, res) => {
 });
 
 // Delete review with CSRF vulnerability  
-router.post('/admin/delete/:id', (req, res) => {
-  // VULNERABILITY: No CSRF protection
+router.post('/admin/delete/:id', flagManager.flagMiddleware('CSRF'), (req, res) => {
   if (!req.session.user || req.session.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  // Check for CSRF
+  const referer = req.get('Referer') || '';
+  const origin = req.get('Origin') || '';
+  const host = req.get('Host') || '';
+  
+  if (!referer.includes(host) && !origin.includes(host)) {
+    res.locals.csrfSuccess = true;
+    res.locals.csrfAction = 'admin_delete_review';
+    res.locals.generateFlag = true;
   }
 
   const reviewId = req.params.id;
@@ -276,9 +250,8 @@ router.post('/admin/delete/:id', (req, res) => {
     });
 });
 
-// Edit review
-router.post('/admin/edit/:id', async (req, res) => {
-  // VULNERABILITY: No CSRF protection
+// Edit review (Stored XSS on update)
+router.post('/admin/edit/:id', flagManager.flagMiddleware('XSS_STORED'), async (req, res) => {
   if (!req.session.user || req.session.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
@@ -292,7 +265,22 @@ router.post('/admin/edit/:id', async (req, res) => {
       return res.status(404).json({ error: 'Review not found' });
     }
     
-    // VULNERABILITY: No sanitization on update
+    // Check for XSS in updated content
+    const xssPatterns = [
+      /<script/i,
+      /javascript:/i,
+      /onerror\s*=/i,
+      /onload\s*=/i,
+      /onclick\s*=/i
+    ];
+    
+    if (xssPatterns.some(pattern => pattern.test(title) || pattern.test(comment))) {
+      res.locals.xssExecuted = true;
+      res.locals.xssPayload = (title + ' ' + comment).substring(0, 100);
+      res.locals.generateFlag = true;
+    }
+    
+    // No sanitization on update
     review.title = title;
     review.comment = comment;
     await review.save();
@@ -301,6 +289,61 @@ router.post('/admin/edit/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Update failed', details: err.message });
   }
+});
+
+// Bulk review operations (CSRF + Privilege escalation)
+router.post('/admin/bulk-action', flagManager.flagMiddleware('CSRF'), (req, res) => {
+  if (!req.session.user || (req.session.user.role !== 'admin' && req.session.user.role !== 'staff')) {
+    return res.status(403).json({ error: 'Admin or staff access required' });
+  }
+
+  // Check for CSRF
+  const referer = req.get('Referer') || '';
+  if (!referer.includes(req.get('Host'))) {
+    res.locals.csrfSuccess = true;
+    res.locals.csrfAction = 'bulk_review_action';
+    res.locals.generateFlag = true;
+  }
+
+  const { action, reviewIds } = req.body;
+  
+  if (!action || !Array.isArray(reviewIds)) {
+    return res.status(400).json({ error: 'Action and review IDs required' });
+  }
+
+  let updateData = {};
+  switch (action) {
+    case 'approve':
+      updateData = { approved: true };
+      break;
+    case 'reject':
+      updateData = { approved: false };
+      break;
+    case 'delete':
+      Review.destroy({ where: { id: reviewIds } })
+        .then(() => {
+          res.json({ success: true, message: `${reviewIds.length} reviews deleted` });
+        })
+        .catch(err => {
+          res.status(500).json({ error: 'Bulk delete failed' });
+        });
+      return;
+    default:
+      return res.status(400).json({ error: 'Invalid action' });
+  }
+
+  Review.update(updateData, { where: { id: reviewIds } })
+    .then(() => {
+      res.json({ 
+        success: true, 
+        message: `${reviewIds.length} reviews ${action}d`,
+        action: action,
+        count: reviewIds.length
+      });
+    })
+    .catch(err => {
+      res.status(500).json({ error: `Bulk ${action} failed` });
+    });
 });
 
 module.exports = router;

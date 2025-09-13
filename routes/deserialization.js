@@ -1,11 +1,10 @@
-// routes/deserialization.js - NEW FILE FOR DESERIALIZATION VULNERABILITIES
-
+// routes/deserialization.js - Fixed deserialization vulnerabilities
 const express = require('express');
 const router = express.Router();
 const flagManager = require('../utils/flags');
 
 // VULNERABILITY #1: Unsafe Session Import (RCE via eval)
-router.post('/session/import', (req, res) => {
+router.post('/session/import', flagManager.flagMiddleware('DESERIALIZATION'), flagManager.flagMiddleware('RCE'), (req, res) => {
   try {
     const { sessionData } = req.body;
     
@@ -13,23 +12,60 @@ router.post('/session/import', (req, res) => {
       return res.status(400).json({ error: 'Session data required' });
     }
 
-    // VULNERABILITY: Using eval() for deserialization - CRITICAL RCE
+    // Check for dangerous deserialization patterns
+    const dangerousPatterns = [
+      /eval\s*\(/,
+      /Function\s*\(/,
+      /require\s*\(/,
+      /process\./,
+      /global\./,
+      /Buffer\./,
+      /fs\./,
+      /child_process/,
+      /__proto__/,
+      /constructor/,
+      /prototype/
+    ];
+    
+    if (dangerousPatterns.some(pattern => pattern.test(sessionData))) {
+      res.locals.deserializationSuccess = true;
+      res.locals.deserializedPayload = sessionData.substring(0, 50);
+      res.locals.generateFlag = true;
+      
+      // Additional check for RCE
+      if (sessionData.includes('require(') || sessionData.includes('process.') || sessionData.includes('eval(')) {
+        res.locals.rceExecuted = true;
+        res.locals.commandOutput = 'code_execution_via_deserialization';
+        res.locals.generateFlag = true;
+      }
+    }
+
+    // EXTREMELY DANGEROUS: Using eval() for deserialization
     let deserializedData;
     try {
-      // This is extremely dangerous - allows arbitrary code execution
       deserializedData = eval('(' + sessionData + ')');
     } catch (evalError) {
       // Fallback to JSON.parse, but still vulnerable to prototype pollution
-      deserializedData = JSON.parse(sessionData);
+      try {
+        deserializedData = JSON.parse(sessionData);
+      } catch (jsonError) {
+        return res.status(400).json({ 
+          error: 'Invalid session data format',
+          details: jsonError.message
+        });
+      }
     }
     
     // Apply deserialized data to session
     Object.assign(req.session, deserializedData);
     
-    // VULNERABILITY: Execute any functions that were deserialized
+    // Execute any functions that were deserialized (RCE VULNERABILITY)
     if (deserializedData.execute && typeof deserializedData.execute === 'string') {
       try {
-        eval(deserializedData.execute); // RCE VULNERABILITY
+        eval(deserializedData.execute);
+        res.locals.rceExecuted = true;
+        res.locals.commandOutput = 'execute_field_rce';
+        res.locals.generateFlag = true;
       } catch (execError) {
         console.log('Execution error:', execError);
       }
@@ -40,7 +76,7 @@ router.post('/session/import', (req, res) => {
       message: 'Session data imported successfully',
       sessionId: req.sessionID,
       importedKeys: Object.keys(deserializedData),
-      // VULNERABILITY: Return potentially sensitive session data
+      // Expose potentially sensitive session data
       session: req.session
     });
     
@@ -49,15 +85,15 @@ router.post('/session/import', (req, res) => {
     res.status(500).json({ 
       error: 'Session import failed', 
       details: err.message,
-      // VULNERABILITY: Expose stack trace
+      // Expose stack trace
       stack: err.stack,
-      sessionData: req.body.sessionData // Echo back potentially malicious data
+      sessionData: req.body.sessionData
     });
   }
 });
 
 // VULNERABILITY #2: Cart Import with Prototype Pollution
-router.post('/cart/import', (req, res) => {
+router.post('/cart/import', flagManager.flagMiddleware('PROTOTYPE_POLLUTION'), (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
@@ -71,23 +107,34 @@ router.post('/cart/import', (req, res) => {
 
     let cart;
     
-    // VULNERABILITY: Multiple unsafe deserialization methods
+    // Check for prototype pollution attempts
+    if (cartData.includes('__proto__') || cartData.includes('constructor') || cartData.includes('prototype')) {
+      res.locals.prototypePolluted = true;
+      res.locals.pollutedProperty = 'prototype_chain';
+      res.locals.generateFlag = true;
+    }
+    
+    // Multiple unsafe deserialization methods
     if (cartData.startsWith('{') || cartData.startsWith('[')) {
       // JSON deserialization - vulnerable to prototype pollution
       cart = JSON.parse(cartData);
     } else {
       // Even worse - eval deserialization
       cart = eval('(' + cartData + ')');
+      
+      res.locals.deserializationSuccess = true;
+      res.locals.deserializedPayload = cartData.substring(0, 50);
+      res.locals.generateFlag = true;
     }
     
-    // VULNERABILITY: Unsafe object merge causing prototype pollution
+    // Unsafe object merge causing prototype pollution
     function unsafeMerge(target, source) {
       for (let key in source) {
         if (typeof source[key] === 'object' && source[key] !== null) {
           if (!target[key]) target[key] = {};
           unsafeMerge(target[key], source[key]); // Recursive merge without __proto__ protection
         } else {
-          target[key] = source[key]; // VULNERABILITY: No key validation
+          target[key] = source[key]; // No key validation
         }
       }
     }
@@ -96,18 +143,20 @@ router.post('/cart/import', (req, res) => {
     if (!req.session.cart) req.session.cart = {};
     unsafeMerge(req.session.cart, cart);
     
-    // VULNERABILITY: Check for polluted prototype
+    // Check for polluted prototype
     const pollutionTest = {};
-    if (pollutionTest.isAdmin) {
-      console.log('PROTOTYPE POLLUTION DETECTED - isAdmin polluted!');
+    if (pollutionTest.isAdmin || pollutionTest.canExecute || pollutionTest.hasAccess) {
+      res.locals.prototypePolluted = true;
+      res.locals.pollutedProperty = 'global_prototype';
+      res.locals.generateFlag = true;
     }
-    
+
     res.json({ 
       success: true, 
       message: 'Cart imported successfully',
       itemCount: Array.isArray(cart) ? cart.length : Object.keys(cart).length,
       cart: req.session.cart,
-      // VULNERABILITY: Expose prototype pollution status
+      // Expose prototype pollution status
       debug: {
         polluted: {
           isAdmin: ({}).__proto__.isAdmin,
@@ -123,14 +172,13 @@ router.post('/cart/import', (req, res) => {
       error: 'Cart import failed', 
       details: err.message,
       stack: err.stack,
-      // VULNERABILITY: Echo back potentially malicious input
       cartData: req.body.cartData
     });
   }
 });
 
 // VULNERABILITY #3: Configuration Update with Object Deserialization
-router.post('/config/update', (req, res) => {
+router.post('/config/update', flagManager.flagMiddleware('DESERIALIZATION'), flagManager.flagMiddleware('RCE'), (req, res) => {
   try {
     const { configData, format = 'json' } = req.body;
     
@@ -140,7 +188,14 @@ router.post('/config/update', (req, res) => {
 
     let config;
     
-    // VULNERABILITY: Multiple unsafe deserialization formats
+    // Check for deserialization attack patterns
+    if (configData.includes('require(') || configData.includes('process.') || configData.includes('eval(')) {
+      res.locals.deserializationSuccess = true;
+      res.locals.deserializedPayload = configData.substring(0, 50);
+      res.locals.generateFlag = true;
+    }
+    
+    // Multiple unsafe deserialization formats
     switch (format) {
       case 'json':
         config = JSON.parse(configData);
@@ -149,23 +204,32 @@ router.post('/config/update', (req, res) => {
       case 'eval':
         // EXTREMELY DANGEROUS - direct code execution
         config = eval('(' + configData + ')');
+        res.locals.rceExecuted = true;
+        res.locals.commandOutput = 'eval_config_execution';
+        res.locals.generateFlag = true;
         break;
         
       case 'function':
-        // VULNERABILITY: Function constructor for RCE
+        // Function constructor for RCE
         const fn = new Function('return ' + configData);
         config = fn();
+        res.locals.rceExecuted = true;
+        res.locals.commandOutput = 'function_constructor_rce';
+        res.locals.generateFlag = true;
         break;
         
       default:
         config = JSON.parse(configData);
     }
     
-    // VULNERABILITY: Unsafe merge causing prototype pollution
+    // Unsafe merge causing prototype pollution
     const globalConfig = {};
     function deepMerge(target, source) {
       for (const key in source) {
-        if (key === '__proto__') continue; // Partial protection (easily bypassed)
+        if (key === '__proto__') {
+          // Partial protection that can be bypassed
+          console.log('__proto__ detected but processed anyway');
+        }
         
         if (source[key] && typeof source[key] === 'object') {
           if (!target[key]) target[key] = {};
@@ -178,11 +242,14 @@ router.post('/config/update', (req, res) => {
     
     deepMerge(globalConfig, config);
     
-    // VULNERABILITY: Execute any startup scripts in config
+    // Execute any startup scripts in config (RCE)
     if (config.startup && Array.isArray(config.startup)) {
       config.startup.forEach(script => {
         try {
-          eval(script); // RCE VULNERABILITY
+          eval(script);
+          res.locals.rceExecuted = true;
+          res.locals.commandOutput = 'startup_script_execution';
+          res.locals.generateFlag = true;
         } catch (e) {
           console.log('Startup script error:', e);
         }
@@ -208,7 +275,7 @@ router.post('/config/update', (req, res) => {
 });
 
 // VULNERABILITY #4: User Preferences with Serialized Objects
-router.post('/preferences/import', (req, res) => {
+router.post('/preferences/import', flagManager.flagMiddleware('DESERIALIZATION'), (req, res) => {
   if (!req.session.user) {
     return res.status(401).json({ error: 'Authentication required' });
   }
@@ -218,16 +285,22 @@ router.post('/preferences/import', (req, res) => {
     
     let userPrefs;
     
-    // VULNERABILITY: Multiple encoding support, all unsafe
+    // Check for malicious payloads in encoded data
+    let decodedData = preferences;
+    
+    // Multiple encoding support, all unsafe
     switch (encoding) {
       case 'base64':
-        const decoded = Buffer.from(preferences, 'base64').toString();
-        userPrefs = JSON.parse(decoded);
+        decodedData = Buffer.from(preferences, 'base64').toString();
+        userPrefs = JSON.parse(decodedData);
         break;
         
       case 'url':
-        const urlDecoded = decodeURIComponent(preferences);
-        userPrefs = eval('(' + urlDecoded + ')'); // RCE VULNERABILITY
+        decodedData = decodeURIComponent(preferences);
+        userPrefs = eval('(' + decodedData + ')'); // RCE VULNERABILITY
+        res.locals.rceExecuted = true;
+        res.locals.commandOutput = 'url_encoding_rce';
+        res.locals.generateFlag = true;
         break;
         
       case 'json':
@@ -236,12 +309,22 @@ router.post('/preferences/import', (req, res) => {
         break;
     }
     
-    // VULNERABILITY: Direct object assignment without validation
+    // Check for deserialization attacks
+    if (decodedData.includes('require(') || decodedData.includes('process.') || decodedData.includes('eval(')) {
+      res.locals.deserializationSuccess = true;
+      res.locals.deserializedPayload = decodedData.substring(0, 50);
+      res.locals.generateFlag = true;
+    }
+    
+    // Direct object assignment without validation
     req.session.user.preferences = userPrefs;
     
-    // VULNERABILITY: Check for privilege escalation via preferences
+    // Check for privilege escalation via preferences
     if (userPrefs.role) {
       req.session.user.role = userPrefs.role; // Privilege escalation
+      res.locals.privilegeEscalated = true;
+      res.locals.escalationMethod = 'preferences_role_override';
+      res.locals.generateFlag = true;
     }
     
     if (userPrefs.permissions) {
@@ -251,7 +334,7 @@ router.post('/preferences/import', (req, res) => {
     res.json({
       success: true,
       message: 'Preferences imported successfully',
-      user: req.session.user, // VULNERABILITY: Expose modified user object
+      user: req.session.user, // Expose modified user object
       encoding: encoding
     });
     
@@ -265,50 +348,90 @@ router.post('/preferences/import', (req, res) => {
   }
 });
 
-router.post('/session/import', flagManager.flagMiddleware('DESERIALIZATION'), flagManager.flagMiddleware('RCE'), (req, res) => {
+// VULNERABILITY #5: Backup Restore with Unsafe Deserialization
+router.post('/backup/restore', flagManager.flagMiddleware('DESERIALIZATION'), (req, res) => {
+  if (!req.session.user || req.session.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
   try {
-    const { sessionData } = req.body;
+    const { backupData, format = 'json', execute = false } = req.body;
     
-    if (!sessionData) {
-      return res.status(400).json({ error: 'Session data required' });
+    if (!backupData) {
+      return res.status(400).json({ error: 'Backup data required' });
     }
+
+    let backup;
     
-    // Check for dangerous patterns
-    if (sessionData.includes('eval(') || sessionData.includes('require(') || 
-        sessionData.includes('exec(') || sessionData.includes('Function(')) {
+    // Detect potential RCE payloads
+    if (backupData.includes('require(') || backupData.includes('child_process') || 
+        backupData.includes('fs.') || backupData.includes('eval(')) {
       res.locals.deserializationSuccess = true;
-      res.locals.deserializedPayload = sessionData.substring(0, 50);
+      res.locals.deserializedPayload = backupData.substring(0, 50);
       res.locals.generateFlag = true;
     }
-    
-    // EXTREMELY DANGEROUS: Using eval()
-    let deserializedData;
-    try {
-      deserializedData = eval('(' + sessionData + ')');
-      
-      // Check if code was executed
-      if (sessionData.includes('process.') || sessionData.includes('require(')) {
+
+    switch (format) {
+      case 'json':
+        backup = JSON.parse(backupData);
+        break;
+        
+      case 'eval':
+        backup = eval('(' + backupData + ')');
         res.locals.rceExecuted = true;
-        res.locals.commandOutput = 'code_execution';
+        res.locals.commandOutput = 'backup_eval_execution';
         res.locals.generateFlag = true;
-      }
-    } catch (evalError) {
-      deserializedData = JSON.parse(sessionData);
+        break;
+        
+      case 'nodejs':
+        // Node.js specific deserialization
+        const vm = require('vm');
+        backup = vm.runInThisContext('(' + backupData + ')');
+        res.locals.rceExecuted = true;
+        res.locals.commandOutput = 'vm_execution';
+        res.locals.generateFlag = true;
+        break;
+        
+      default:
+        backup = JSON.parse(backupData);
     }
-    
-    Object.assign(req.session, deserializedData);
-    
-    res.json({ 
-      success: true, 
-      message: 'Session data imported'
+
+    // Execute restoration commands if present
+    if (execute && backup.commands && Array.isArray(backup.commands)) {
+      backup.commands.forEach(cmd => {
+        try {
+          if (typeof cmd === 'string') {
+            eval(cmd);
+            res.locals.rceExecuted = true;
+            res.locals.commandOutput = 'backup_command_execution';
+            res.locals.generateFlag = true;
+          }
+        } catch (e) {
+          console.log('Command execution error:', e);
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Backup restored successfully',
+      format: format,
+      itemsRestored: backup.items ? backup.items.length : 0,
+      executed: execute,
+      timestamp: new Date().toISOString()
     });
-    
+
   } catch (err) {
-    res.status(500).json({ error: 'Session import failed' });
+    console.error('Backup restore error:', err);
+    res.status(500).json({
+      error: 'Backup restore failed',
+      details: err.message,
+      stack: err.stack
+    });
   }
 });
 
-// Prototype pollution
+// Settings merge with prototype pollution
 router.post('/settings/merge', flagManager.flagMiddleware('PROTOTYPE_POLLUTION'), (req, res) => {
   const { settings } = req.body;
   

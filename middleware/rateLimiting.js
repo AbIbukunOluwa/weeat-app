@@ -1,4 +1,4 @@
-// middleware/rateLimiting.js - Rate limiting with multiple bypasses
+// middleware/rateLimiting.js - Fixed rate limiting with bypass vulnerabilities
 const rateLimit = require('express-rate-limit');
 const flagManager = require('../utils/flags');
 
@@ -7,128 +7,12 @@ const createRateLimit = (windowMs, max, message) => {
   return rateLimit({
     windowMs: windowMs,
     max: max,
-    message: message,
+    message: { error: message },
     standardHeaders: true,
     legacyHeaders: false,
     
-    // VULNERABILITY: Multiple bypass mechanisms
-    skip: (req) => {
-      // Bypass 1: IP-based bypasses
-      const clientIP = req.ip || req.connection.remoteAddress;
-      const forwardedIP = req.headers['x-forwarded-for'];
-      const realIP = req.headers['x-real-ip'];
-      
-      // Trust X-Forwarded-For header (can be spoofed)
-      if (forwardedIP && forwardedIP.includes('127.0.0.1')) {
-        return true; // Skip rate limiting for "localhost"
-      }
-      
-      // Bypass 2: Special headers
-      if (req.headers['x-rate-limit-bypass'] === 'internal-service') {
-        return true;
-      }
-      
-      if (req.headers['x-admin-override'] === 'rate-limit-exempt') {
-        return true;
-      }
-      
-      // Bypass 3: User agent bypass
-      const userAgent = req.get('User-Agent');
-      if (userAgent && userAgent.includes('WeEat-Internal-Bot')) {
-        return true;
-      }
-      
-      // Bypass 4: API key bypass (weak validation)
-      if (req.headers['x-api-key'] && req.headers['x-api-key'].startsWith('weeat-')) {
-        return true;
-      }
-      
-      // Bypass 5: Session-based bypass for "premium" users
-      if (req.session?.user?.role === 'admin' || req.session?.user?.role === 'staff') {
-        return true;
-      }
-      
-      return false;
-    },
-    
-    // VULNERABILITY: Use X-Forwarded-For for key generation (easily spoofed)
-    keyGenerator: (req) => {
-      return req.headers['x-forwarded-for'] || 
-             req.headers['x-real-ip'] || 
-             req.ip || 
-             req.connection.remoteAddress;
-    },
-    
-    // Custom error handler that leaks bypass information
-    handler: (req, res) => {
-      const isDebug = req.headers['x-debug-rate-limit'] === 'true';
-      
-      res.status(429).json({
-        error: 'Too many requests',
-        retryAfter: Math.ceil(windowMs / 1000),
-        // VULNERABILITY: Expose bypass hints in debug mode
-        debug: isDebug ? {
-          currentIP: req.ip,
-          forwardedFor: req.headers['x-forwarded-for'],
-          userAgent: req.get('User-Agent'),
-          bypassHints: [
-            'Try X-Rate-Limit-Bypass header',
-            'Spoof X-Forwarded-For header',
-            'Use internal user agent',
-            'Check API key requirements'
-          ]
-        } : undefined
-      });
-    }
-  });
-};
-
-// Different rate limits for different endpoints
-const authRateLimit = createRateLimit(
-  15 * 60 * 1000, // 15 minutes
-  5, // 5 attempts
-  'Too many authentication attempts'
-);
-
-const apiRateLimit = createRateLimit(
-  1 * 60 * 1000, // 1 minute  
-  100, // 100 requests
-  'API rate limit exceeded'
-);
-
-const uploadRateLimit = createRateLimit(
-  5 * 60 * 1000, // 5 minutes
-  10, // 10 uploads
-  'Upload rate limit exceeded'
-);
-
-// VULNERABILITY: Password reset with weak rate limiting
-const passwordResetLimit = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 3,
-  
-  // VULNERABILITY: Only checks email, not IP
-  keyGenerator: (req) => {
-    return req.body.email || req.ip;
-  },
-  
-  skip: (req) => {
-    // VULNERABILITY: Bypass with specific header combination
-    return req.headers['x-password-reset-bypass'] === 'support-tool' &&
-           req.headers['x-support-ticket'];
-  }
-});
-
-module.exports = {
-  authRateLimit,
-  apiRateLimit, 
-  uploadRateLimit,
-  passwordResetLimit
-};
-
-
- // Rate limit bypass detection
-    skip: (req) => {
+    // Rate limit bypass detection and flag generation
+    skip: (req, res) => {
       // Check for bypass attempts
       const bypassHeaders = [
         'x-forwarded-for',
@@ -139,25 +23,35 @@ module.exports = {
       
       const bypassDetected = bypassHeaders.some(header => {
         const value = req.headers[header];
-        return value && (value.includes('127.0.0.1') || value === 'internal-service');
+        return value && (value.includes('127.0.0.1') || value === 'internal-service' || value === 'rate-limit-exempt');
       });
       
-      if (bypassDetected) {
-        req.rateLimitBypassed = true;
-        req.bypassMethod = 'headers';
+      // Check for user agent bypass
+      const userAgent = req.get('User-Agent');
+      const hasUserAgentBypass = userAgent && userAgent.includes('WeEat-Internal-Bot');
+      
+      // Check for API key bypass (weak validation)
+      const hasApiKeyBypass = req.headers['x-api-key'] && req.headers['x-api-key'].startsWith('weeat-');
+      
+      // Check for session-based bypass
+      const hasSessionBypass = req.session?.user?.role === 'admin' || req.session?.user?.role === 'staff';
+      
+      if (bypassDetected || hasUserAgentBypass || hasApiKeyBypass || hasSessionBypass) {
+        // Set flag generation markers
+        res.locals.rateLimitBypassed = true;
+        res.locals.bypassMethod = bypassDetected ? 'headers' : 
+                                 hasUserAgentBypass ? 'user-agent' :
+                                 hasApiKeyBypass ? 'api-key' : 'session';
+        res.locals.generateFlag = true;
         
-        // Set flag generation in response
+        // Override response methods to inject flag
         if (!req.rateLimitFlagSet) {
           req.rateLimitFlagSet = true;
           
-          // Use middleware to set res.locals when response is being sent
-          const originalSend = req.res.send;
-          const originalJson = req.res.json;
+          const originalSend = res.send;
+          const originalJson = res.json;
           
-          req.res.send = function(data) {
-            this.locals.rateLimitBypassed = true;
-            this.locals.bypassMethod = 'headers';
-            this.locals.generateFlag = true;
+          res.send = function(data) {
             const flag = flagManager.checkExploitation('RATE_LIMIT_BYPASS', req, this);
             if (flag && typeof data === 'string') {
               data = data.replace('</body>', `<!-- FLAG: ${flag} --></body>`);
@@ -165,10 +59,7 @@ module.exports = {
             return originalSend.call(this, data);
           };
           
-          req.res.json = function(data) {
-            this.locals.rateLimitBypassed = true;
-            this.locals.bypassMethod = 'headers';
-            this.locals.generateFlag = true;
+          res.json = function(data) {
             const flag = flagManager.checkExploitation('RATE_LIMIT_BYPASS', req, this);
             if (flag && data && typeof data === 'object') {
               data._flag = flag;
@@ -180,12 +71,112 @@ module.exports = {
         return true; // Skip rate limiting
       }
       
-      return false;
+      return false; // Apply rate limiting
+    },
+    
+    // Use spoofable headers for key generation (vulnerability)
+    keyGenerator: (req) => {
+      // Prioritize spoofable headers
+      return req.headers['x-forwarded-for'] || 
+             req.headers['x-real-ip'] || 
+             req.ip || 
+             req.connection.remoteAddress ||
+             'unknown';
+    },
+    
+    // Custom error handler that leaks bypass information
+    handler: (req, res) => {
+      const isDebug = req.headers['x-debug-rate-limit'] === 'true';
+      
+      res.status(429).json({
+        error: 'Too many requests',
+        retryAfter: Math.ceil(windowMs / 1000),
+        message: message,
+        // Expose bypass hints in debug mode
+        debug: isDebug ? {
+          currentIP: req.ip,
+          forwardedFor: req.headers['x-forwarded-for'],
+          realIP: req.headers['x-real-ip'],
+          userAgent: req.get('User-Agent'),
+          bypassHints: [
+            'Try X-Rate-Limit-Bypass: internal-service',
+            'Try X-Admin-Override: rate-limit-exempt', 
+            'Spoof X-Forwarded-For: 127.0.0.1',
+            'Use WeEat-Internal-Bot user agent',
+            'Try X-API-Key: weeat-bypass-token'
+          ]
+        } : undefined,
+        timestamp: new Date().toISOString()
+      });
     }
   });
 };
 
+// Different rate limits for different endpoints
+const authRateLimit = createRateLimit(
+  15 * 60 * 1000, // 15 minutes
+  5, // 5 attempts
+  'Too many authentication attempts. Please try again later.'
+);
+
+const apiRateLimit = createRateLimit(
+  1 * 60 * 1000, // 1 minute  
+  100, // 100 requests
+  'API rate limit exceeded. Please slow down.'
+);
+
+const uploadRateLimit = createRateLimit(
+  5 * 60 * 1000, // 5 minutes
+  10, // 10 uploads
+  'Upload rate limit exceeded. Please wait before uploading again.'
+);
+
+// Password reset with weak rate limiting
+const passwordResetLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 3,
+  message: { error: 'Too many password reset attempts' },
+  
+  // Only checks email, not IP (vulnerability)
+  keyGenerator: (req) => {
+    return req.body.email || req.ip;
+  },
+  
+  skip: (req, res) => {
+    // Bypass with specific header combination
+    const hasBypass = req.headers['x-password-reset-bypass'] === 'support-tool' &&
+                     req.headers['x-support-ticket'];
+    
+    if (hasBypass) {
+      res.locals.rateLimitBypassed = true;
+      res.locals.bypassMethod = 'support-bypass';
+      res.locals.generateFlag = true;
+    }
+    
+    return hasBypass;
+  }
+});
+
+// Comment rate limiting (easily bypassed)
+const commentRateLimit = createRateLimit(
+  5 * 60 * 1000, // 5 minutes
+  20, // 20 comments
+  'Comment rate limit exceeded. Please slow down.'
+);
+
+// Admin action rate limiting (bypassable)
+const adminRateLimit = createRateLimit(
+  1 * 60 * 1000, // 1 minute
+  50, // 50 admin actions
+  'Admin action rate limit exceeded.'
+);
+
 module.exports = {
-  authRateLimit: createRateLimit(15 * 60 * 1000, 5, 'Too many auth attempts'),
-  apiRateLimit: createRateLimit(1 * 60 * 1000, 100, 'API rate limit exceeded')
+  authRateLimit,
+  apiRateLimit,
+  uploadRateLimit,
+  passwordResetLimit,
+  commentRateLimit,
+  adminRateLimit,
+  createRateLimit
 };
