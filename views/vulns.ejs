@@ -3,7 +3,7 @@
 <div class="vulns-container">
   <div class="vulns-header">
     <h1>🔒 WeEat Security Testing Challenge</h1>
-    <p>Find and exploit vulnerabilities in this application</p>
+    <p class="tagline">Black Box Penetration Testing Environment</p>
   </div>
 
   <% if (message) { %>
@@ -16,79 +16,102 @@
   <!-- Stats Section -->
   <div class="stats-section">
     <div class="stat-card">
-      <span class="stat-number"><%= vulns.length %></span>
-      <span class="stat-label">Total Vulnerabilities</span>
+      <span class="stat-number"><%= totalVulns %></span>
+      <span class="stat-label">Total Challenges</span>
     </div>
     <div class="stat-card">
-      <span class="stat-number"><%= vulns.filter(v => v.resolved).length %></span>
+      <span class="stat-number"><%= foundCount %></span>
       <span class="stat-label">Found</span>
     </div>
     <div class="stat-card">
-      <span class="stat-number"><%= vulns.filter(v => !v.resolved).length %></span>
+      <span class="stat-number"><%= remainingCount %></span>
       <span class="stat-label">Remaining</span>
     </div>
     <div class="stat-card">
-      <span class="stat-number"><%= vulns.length > 0 ? Math.round((vulns.filter(v => v.resolved).length / vulns.length) * 100) : 0 %>%</span>
+      <span class="stat-number"><%= progress %>%</span>
       <span class="stat-label">Progress</span>
     </div>
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="progress-container">
+    <div class="progress-bar">
+      <div class="progress-fill" style="width: <%= progress %>%"></div>
+    </div>
+    <p class="progress-text"><%= foundCount %> of <%= totalVulns %> vulnerabilities discovered</p>
   </div>
 
   <!-- Submit Flag Form -->
   <div class="submit-section">
     <h2>Submit Flag</h2>
-    <p>Enter the flag code you discovered during your testing</p>
+    <p>Found a vulnerability? Submit your flag here.</p>
     <form action="/vulns/submit" method="POST" class="flag-form">
-      <input type="text" name="code" placeholder="Enter flag code (e.g., SQLI_001)" required>
+      <input 
+        type="text" 
+        name="code" 
+        placeholder="WeEat{...}" 
+        pattern="^WeEat\{[A-Z0-9_]+\}$"
+        title="Flag format: WeEat{UPPERCASE_ALPHANUMERIC}"
+        required
+        autocomplete="off"
+        spellcheck="false"
+      >
       <button type="submit">Submit Flag</button>
     </form>
   </div>
 
-  <!-- Vulnerabilities List -->
-  <div class="vulns-list">
-    <h2>Vulnerability Status Board</h2>
-    
-    <!-- Group by severity -->
-    <% ['Critical', 'High', 'Medium', 'Low'].forEach(severity => { %>
-      <% const severityVulns = vulns.filter(v => v.severity === severity); %>
-      <% if (severityVulns.length > 0) { %>
-        <div class="severity-group">
-          <h3 class="severity-<%= severity.toLowerCase() %>">
-            <%= severity %> Severity (<%= severityVulns.length %>)
-          </h3>
-          <div class="vulns-grid">
-            <% severityVulns.forEach(vuln => { %>
-              <div class="vuln-card <%= vuln.resolved ? 'resolved' : '' %>">
-                <div class="vuln-header">
-                  <span class="vuln-status">
-                    <%= vuln.resolved ? '✅' : '❌' %>
-                  </span>
-                  <span class="vuln-severity severity-<%= vuln.severity.toLowerCase() %>">
-                    <%= vuln.severity %>
-                  </span>
-                </div>
-                <h4><%= vuln.title %></h4>
-                <p class="vuln-description"><%= vuln.description %></p>
-                <% if (vuln.resolved && vuln.resolvedAt) { %>
-                  <div class="resolved-info">
-                    ✓ Found at: <%= new Date(vuln.resolvedAt).toLocaleString() %>
-                  </div>
-                <% } else { %>
-                  <div class="not-found-info">
-                    Status: Not Found
-                  </div>
-                <% } %>
-              </div>
-            <% }) %>
-          </div>
-        </div>
-      <% } %>
-    <% }) %>
+  <!-- Challenge Info -->
+  <div class="challenge-info">
+    <h2>Challenge Rules</h2>
+    <div class="rules-grid">
+      <div class="rule-card">
+        <h3>🎯 Objective</h3>
+        <p>Find and exploit vulnerabilities in the WeEat application. Each successful exploitation generates a unique flag.</p>
+      </div>
+      <div class="rule-card">
+        <h3>🔍 Methodology</h3>
+        <p>This is a black box challenge. No hints, no vulnerability list. Use your skills to discover and exploit.</p>
+      </div>
+      <div class="rule-card">
+        <h3>🚫 Restrictions</h3>
+        <p>Do not use automated scanners. Do not perform DoS attacks. Do not modify other users' real data.</p>
+      </div>
+      <div class="rule-card">
+        <h3>🏆 Scoring</h3>
+        <p>Each valid flag represents a unique vulnerability. Flags are generated dynamically upon successful exploitation.</p>
+      </div>
+    </div>
   </div>
+
+  <!-- Hint Section (Very Minimal) -->
+  <div class="hint-section">
+    <h2>Getting Started</h2>
+    <p>New to penetration testing? Here are some general areas to explore:</p>
+    <ul class="hint-list">
+      <li>Test all input fields</li>
+      <li>Examine authentication mechanisms</li>
+      <li>Check file upload functionality</li>
+      <li>Analyze API endpoints</li>
+      <li>Review client-side code</li>
+      <li>Test for access control issues</li>
+    </ul>
+    <p class="disclaimer">Remember: This is a test environment. All vulnerabilities are intentional for educational purposes.</p>
+  </div>
+
+  <% if (user && user.role === 'admin') { %>
+    <!-- Admin Controls -->
+    <div class="admin-section">
+      <h3>Admin Controls</h3>
+      <form action="/vulns/reset" method="POST" onsubmit="return confirm('Are you sure? This will reset all progress.')">
+        <button type="submit" class="btn-reset">Reset All Progress</button>
+      </form>
+    </div>
+  <% } %>
 </div>
 
 <style>
 .vulns-container {
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 30px 20px;
 }
@@ -104,9 +127,10 @@
   margin-bottom: 10px;
 }
 
-.vulns-header p {
+.tagline {
   color: #666;
   font-size: 1.2em;
+  font-weight: 500;
 }
 
 .alert {
@@ -115,6 +139,18 @@
   margin-bottom: 20px;
   font-weight: bold;
   text-align: center;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .alert.success {
@@ -133,7 +169,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
-  margin-bottom: 40px;
+  margin-bottom: 30px;
 }
 
 .stat-card {
@@ -142,6 +178,12 @@
   border-radius: 12px;
   text-align: center;
   box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+  transition: transform 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 20px rgba(0,0,0,0.15);
 }
 
 .stat-number {
@@ -157,6 +199,38 @@
   font-size: 0.95em;
   text-transform: uppercase;
   letter-spacing: 1px;
+}
+
+.progress-container {
+  margin-bottom: 40px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 30px;
+  background: #e9ecef;
+  border-radius: 15px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-red), var(--accent-yellow));
+  transition: width 0.5s ease;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 10px;
+  color: white;
+  font-weight: bold;
+}
+
+.progress-text {
+  text-align: center;
+  margin-top: 10px;
+  color: #666;
+  font-size: 0.95em;
 }
 
 .submit-section {
@@ -191,7 +265,18 @@
   border: 2px solid #ddd;
   border-radius: 8px;
   font-size: 16px;
-  font-family: monospace;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+  transition: border-color 0.3s;
+}
+
+.flag-form input:focus {
+  outline: none;
+  border-color: var(--accent-yellow);
+}
+
+.flag-form input:valid {
+  border-color: #28a745;
 }
 
 .flag-form button {
@@ -209,119 +294,118 @@
   background: #b91c1c;
 }
 
-.vulns-list {
+.challenge-info {
   margin-bottom: 40px;
 }
 
-.vulns-list h2 {
+.challenge-info h2 {
   color: var(--primary-red);
-  margin-bottom: 30px;
+  margin-bottom: 20px;
   text-align: center;
-  font-size: 1.8em;
 }
 
-.severity-group {
-  margin-bottom: 30px;
-}
-
-.severity-group h3 {
-  margin-bottom: 20px;
-  padding: 10px 15px;
-  border-radius: 8px;
-  color: white;
-}
-
-.severity-critical { background: #dc3545; }
-.severity-high { background: #fd7e14; }
-.severity-medium { background: #ffc107; color: #333; }
-.severity-low { background: #28a745; }
-
-.vulns-grid {
+.rules-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 20px;
-  margin-bottom: 20px;
 }
 
-.vuln-card {
+.rule-card {
   background: white;
   padding: 20px;
   border-radius: 10px;
   box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-  transition: all 0.3s;
-  border: 2px solid #e0e0e0;
 }
 
-.vuln-card.resolved {
-  border-color: #28a745;
-  background: #f8fff9;
+.rule-card h3 {
+  color: var(--primary-red);
+  margin-bottom: 10px;
+  font-size: 1.2em;
 }
 
-.vuln-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-}
-
-.vuln-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.vuln-status {
-  font-size: 1.5em;
-}
-
-.vuln-severity {
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 0.85em;
-  font-weight: bold;
-  text-transform: uppercase;
-}
-
-.vuln-card h4 {
-  color: #333;
-  margin: 10px 0;
-  font-size: 1.1em;
-}
-
-.vuln-description {
+.rule-card p {
   color: #666;
-  font-size: 0.95em;
-  line-height: 1.5;
+  line-height: 1.6;
+}
+
+.hint-section {
+  background: #f8f9fa;
+  padding: 30px;
+  border-radius: 12px;
+  margin-bottom: 40px;
+}
+
+.hint-section h2 {
+  color: var(--primary-red);
   margin-bottom: 15px;
 }
 
-.resolved-info {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #e0e0e0;
-  color: #28a745;
-  font-size: 0.85em;
+.hint-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+}
+
+.hint-list li {
+  padding: 10px 15px;
+  background: white;
+  border-radius: 6px;
+  color: #666;
+  border-left: 3px solid var(--accent-yellow);
+}
+
+.disclaimer {
+  margin-top: 20px;
+  padding: 15px;
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 6px;
+  color: #856404;
+  text-align: center;
+}
+
+.admin-section {
+  margin-top: 40px;
+  padding: 20px;
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.admin-section h3 {
+  color: #721c24;
+  margin-bottom: 15px;
+}
+
+.btn-reset {
+  padding: 10px 20px;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
   font-weight: bold;
 }
 
-.not-found-info {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #e0e0e0;
-  color: #999;
-  font-size: 0.85em;
+.btn-reset:hover {
+  background: #c82333;
 }
 
 @media (max-width: 768px) {
-  .vulns-grid {
-    grid-template-columns: 1fr;
-  }
-  
   .flag-form {
     flex-direction: column;
   }
   
   .stats-section {
     grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .rules-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

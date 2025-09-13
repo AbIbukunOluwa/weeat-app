@@ -4,6 +4,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const flagManager = require('../utils/flags');
 
 // Configure multer for file uploads
 const upload = multer({ dest: path.join(__dirname, '../uploads/xml/') });
@@ -131,6 +132,47 @@ router.post('/import-config', upload.single('config'), (req, res) => {
       details: err.message,
       stack: err.stack
     });
+  }
+});
+
+router.post('/import-menu', flagManager.flagMiddleware('XXE'), (req, res) => {
+  try {
+    const xmlData = req.body.xml || req.body;
+    
+    if (!xmlData) {
+      return res.status(400).json({ error: 'XML data required' });
+    }
+    
+    // Check for XXE payloads
+    const xxePatterns = [
+      /<!DOCTYPE/i,
+      /<!ENTITY/i,
+      /SYSTEM/i,
+      /file:\/\//i,
+      /\/etc\/passwd/i,
+      /C:\\Windows/i
+    ];
+    
+    if (xxePatterns.some(pattern => pattern.test(xmlData))) {
+      res.locals.xxeSuccess = true;
+      res.locals.xxeData = xmlData.substring(0, 100);
+      res.locals.generateFlag = true;
+    }
+    
+    // Vulnerable XML parsing
+    const libxmljs = require('libxmljs');
+    const xmlDoc = libxmljs.parseXml(xmlData, { 
+      noent: true,    // VULNERABILITY: Enable entity processing
+      nonet: false    // VULNERABILITY: Allow network access
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Menu import processed'
+    });
+    
+  } catch (err) {
+    res.status(500).json({ error: 'XML processing failed' });
   }
 });
 

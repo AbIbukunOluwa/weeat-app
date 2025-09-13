@@ -3,6 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { User, Order } = require('../models');
+const flagManager = require('../utils/flags');
 
 // CSRF VULNERABILITY #1: Password Change Without CSRF Protection
 router.post('/change-password', (req, res) => {
@@ -105,6 +106,43 @@ router.post('/change-email', (req, res) => {
         details: err.message 
       });
     });
+});
+
+router.post('/change-password', flagManager.flagMiddleware('CSRF'), async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    // Check if this is a CSRF attack
+    const referer = req.get('Referer') || '';
+    const origin = req.get('Origin') || '';
+    
+    if (!referer.includes(req.get('host')) || (origin && !origin.includes(req.get('host')))) {
+      res.locals.csrfSuccess = true;
+      res.locals.csrfAction = 'password_change';
+      res.locals.generateFlag = true;
+    }
+    
+    const user = await User.findByPk(req.session.user.id);
+    
+    if (user && await user.checkPassword(currentPassword)) {
+      await user.setPassword(newPassword);
+      await user.save();
+      
+      res.json({ 
+        success: true, 
+        message: 'Password changed successfully'
+      });
+    } else {
+      res.status(400).json({ error: 'Current password incorrect' });
+    }
+    
+  } catch (err) {
+    res.status(500).json({ error: 'Password change failed' });
+  }
 });
 
 // CSRF VULNERABILITY #3: Delete Account Without Protection

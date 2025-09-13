@@ -2,6 +2,7 @@
 
 const express = require('express');
 const router = express.Router();
+const flagManager = require('../utils/flags');
 
 // VULNERABILITY #1: Unsafe Session Import (RCE via eval)
 router.post('/session/import', (req, res) => {
@@ -262,6 +263,92 @@ router.post('/preferences/import', (req, res) => {
       preferences: req.body.preferences
     });
   }
+});
+
+router.post('/session/import', flagManager.flagMiddleware('DESERIALIZATION'), flagManager.flagMiddleware('RCE'), (req, res) => {
+  try {
+    const { sessionData } = req.body;
+    
+    if (!sessionData) {
+      return res.status(400).json({ error: 'Session data required' });
+    }
+    
+    // Check for dangerous patterns
+    if (sessionData.includes('eval(') || sessionData.includes('require(') || 
+        sessionData.includes('exec(') || sessionData.includes('Function(')) {
+      res.locals.deserializationSuccess = true;
+      res.locals.deserializedPayload = sessionData.substring(0, 50);
+      res.locals.generateFlag = true;
+    }
+    
+    // EXTREMELY DANGEROUS: Using eval()
+    let deserializedData;
+    try {
+      deserializedData = eval('(' + sessionData + ')');
+      
+      // Check if code was executed
+      if (sessionData.includes('process.') || sessionData.includes('require(')) {
+        res.locals.rceExecuted = true;
+        res.locals.commandOutput = 'code_execution';
+        res.locals.generateFlag = true;
+      }
+    } catch (evalError) {
+      deserializedData = JSON.parse(sessionData);
+    }
+    
+    Object.assign(req.session, deserializedData);
+    
+    res.json({ 
+      success: true, 
+      message: 'Session data imported'
+    });
+    
+  } catch (err) {
+    res.status(500).json({ error: 'Session import failed' });
+  }
+});
+
+// Prototype pollution
+router.post('/settings/merge', flagManager.flagMiddleware('PROTOTYPE_POLLUTION'), (req, res) => {
+  const { settings } = req.body;
+  
+  if (!settings || typeof settings !== 'object') {
+    return res.status(400).json({ error: 'Settings object required' });
+  }
+  
+  // Check for prototype pollution attempts
+  if ('__proto__' in settings || 'constructor' in settings || 'prototype' in settings) {
+    res.locals.prototypePolluted = true;
+    res.locals.pollutedProperty = Object.keys(settings).join(',');
+    res.locals.generateFlag = true;
+  }
+  
+  // Vulnerable merge function
+  function merge(target, source) {
+    for (const key in source) {
+      if (source.hasOwnProperty(key)) {
+        if (source[key] && typeof source[key] === 'object') {
+          target[key] = target[key] || {};
+          merge(target[key], source[key]);
+        } else {
+          target[key] = source[key];
+        }
+      }
+    }
+  }
+  
+  const userSettings = {};
+  merge(userSettings, settings);
+  
+  // Check if prototype was polluted
+  const test = {};
+  if (test.isAdmin === true || test.canExecute === true) {
+    res.locals.prototypePolluted = true;
+    res.locals.pollutedProperty = 'isAdmin';
+    res.locals.generateFlag = true;
+  }
+  
+  res.json({ success: true, settings: userSettings });
 });
 
 module.exports = router;

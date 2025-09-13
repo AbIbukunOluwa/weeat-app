@@ -7,6 +7,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const sharp = require('sharp'); // For image processing
 const unzipper = require('unzipper'); // For zip file handling
+const flagManager = require('../utils/flags');
 
 // Storage configuration with multiple vulnerabilities
 const storage = multer.diskStorage({
@@ -280,6 +281,69 @@ router.post('/image/analyze', upload.single('image'), async (req, res) => {
       error: 'EXIF extraction failed',
       details: err.message
     });
+  }
+});
+
+// Unrestricted file upload
+router.post('/profile/avatar', upload.single('avatar'), flagManager.flagMiddleware('FILE_UPLOAD'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    const fileExt = path.extname(req.file.originalname).toLowerCase();
+    
+    // Check for malicious file types
+    const dangerousExtensions = [
+      '.php', '.jsp', '.asp', '.aspx', 
+      '.js', '.py', '.rb', '.sh', '.bat',
+      '.exe', '.dll', '.so'
+    ];
+    
+    if (dangerousExtensions.includes(fileExt)) {
+      res.locals.maliciousFileUploaded = true;
+      res.locals.uploadedFileType = fileExt;
+      res.locals.generateFlag = true;
+    }
+    
+    // Check for double extensions (bypass attempt)
+    if (req.file.originalname.match(/\.(jpg|png|gif)\.(php|asp|jsp)/i)) {
+      res.locals.maliciousFileUploaded = true;
+      res.locals.uploadedFileType = 'double_extension';
+      res.locals.generateFlag = true;
+    }
+    
+    res.json({
+      success: true,
+      file: {
+        filename: req.file.filename,
+        path: `/uploads/${req.file.filename}`
+      }
+    });
+    
+  } catch (err) {
+    res.status(500).json({ error: 'Upload failed' });
+  }
+});
+
+// Path traversal vulnerability
+router.get('/view/:filename', flagManager.flagMiddleware('PATH_TRAVERSAL'), (req, res) => {
+  const filename = req.params.filename;
+  
+  // Check for path traversal attempts
+  if (filename.includes('../') || filename.includes('..\\')) {
+    res.locals.pathTraversalSuccess = true;
+    res.locals.accessedPath = filename;
+    res.locals.generateFlag = true;
+  }
+  
+  // Vulnerable: No proper sanitization
+  const filePath = path.join(__dirname, '../uploads', filename);
+  
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).send('File not found');
   }
 });
 

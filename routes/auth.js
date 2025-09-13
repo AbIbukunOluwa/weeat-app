@@ -4,6 +4,7 @@ const router = express.Router();
 const { User } = require('../models');
 const crypto = require('crypto');
 const { Op } = require('sequelize'); // Add this import
+const flagManager = require('../utils/flags');
 
 // Enhanced session data with UUIDs
 function createSessionData(user) {
@@ -19,6 +20,113 @@ function createSessionData(user) {
     sessionToken: crypto.randomBytes(32).toString('hex') // Additional session security
   };
 }
+
+// Authentication Bypass via SQL Injection
+router.post('/login', flagManager.flagMiddleware('SQL_INJECTION'), flagManager.flagMiddleware('AUTH_BYPASS'), async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Check for authentication bypass headers
+    if (req.headers['x-auth-bypass'] === 'true' || 
+        req.headers['x-admin-override'] === 'true') {
+      res.locals.authBypassed = true;
+      res.locals.bypassMethod = 'headers';
+      res.locals.generateFlag = true;
+    }
+    
+    let user;
+    
+    // SQL Injection vulnerability in login
+    if (email.includes("'") || email.includes('"') || email.includes('--')) {
+      try {
+        // Vulnerable query
+        const query = `SELECT * FROM users WHERE email = '${email}' OR username = '${email}'`;
+        const results = await sequelize.query(query, { type: sequelize.QueryTypes.SELECT });
+        
+        if (results.length > 0) {
+          user = await User.findByPk(results[0].id);
+          res.locals.sqlInjectionSuccess = true;
+          res.locals.extractedData = 'auth_bypass';
+          res.locals.authBypassed = true;
+          res.locals.bypassMethod = 'sql_injection';
+          res.locals.generateFlag = true;
+        }
+      } catch (sqlErr) {
+        // SQL error
+      }
+    }
+    
+    if (!user) {
+      user = await User.findOne({ 
+        where: { 
+          [Op.or]: [
+            { email: email },
+            { username: email }
+          ]
+        }
+      });
+    }
+    
+    // Weak password check bypass
+    let passwordValid = false;
+    if (user) {
+      passwordValid = await user.checkPassword(password);
+      
+      // Check for magic passwords (vulnerability)
+      if (!passwordValid && (password === 'admin' || password === 'bypass2024')) {
+        passwordValid = true;
+        res.locals.authBypassed = true;
+        res.locals.bypassMethod = 'weak_password';
+        res.locals.generateFlag = true;
+      }
+    }
+    
+    if (user && (passwordValid || res.locals.authBypassed)) {
+      req.session.user = user.getSessionData();
+      req.session.originalRole = user.role;
+      res.redirect('/');
+    } else {
+      res.render('auth/login', { 
+        error: 'Invalid credentials',
+        title: 'Login'
+      });
+    }
+    
+  } catch (err) {
+    res.render('auth/login', { 
+      error: 'Login failed',
+      title: 'Login'
+    });
+  }
+});
+
+// User enumeration vulnerability
+router.get('/check-user/:identifier', flagManager.flagMiddleware('INFO_DISCLOSURE'), async (req, res) => {
+  const { identifier } = req.params;
+  
+  try {
+    const user = await User.findByIdentifier(identifier);
+    
+    if (user) {
+      // Information disclosure
+      res.locals.sensitiveInfoDisclosed = true;
+      res.locals.disclosedInfo = 'user_enumeration';
+      res.locals.generateFlag = true;
+      
+      res.json({ 
+        exists: true,
+        uuid: user.uuid,
+        username: user.username,
+        role: user.role,
+        lastLogin: user.lastLogin
+      });
+    } else {
+      res.json({ exists: false });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Lookup failed' });
+  }
+});
 
 router.get('/register', (req, res) => {
   res.render('auth/register', { 
@@ -267,6 +375,60 @@ router.get('/check-user/:identifier', async (req, res) => {
     }
   } catch (err) {
     res.status(500).json({ error: 'User lookup failed' });
+  }
+});
+
+// Authentication Bypass
+router.post('/login', flagManager.flagMiddleware('AUTH_BYPASS'), async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Check for bypass attempts
+    const bypassHeaders = [
+      'x-admin-bypass',
+      'x-auth-override',
+      'x-skip-password'
+    ];
+    
+    if (bypassHeaders.some(h => req.headers[h])) {
+      res.locals.authBypassed = true;
+      res.locals.bypassMethod = 'headers';
+      res.locals.generateFlag = true;
+    }
+    
+    // Vulnerable authentication logic
+    let user;
+    
+    // VULNERABILITY: SQL injection in login
+    if (email.includes("'") || email.includes('"')) {
+      try {
+        const query = `SELECT * FROM users WHERE email = '${email}'`;
+        const results = await sequelize.query(query, { type: sequelize.QueryTypes.SELECT });
+        if (results.length > 0) {
+          user = results[0];
+          res.locals.authBypassed = true;
+          res.locals.bypassMethod = 'sql_injection';
+          res.locals.generateFlag = true;
+        }
+      } catch (e) {
+        // SQL error
+      }
+    }
+    
+    if (!user) {
+      user = await User.findOne({ where: { email } });
+    }
+    
+    if (user && (await user.checkPassword(password) || res.locals.authBypassed)) {
+      // Store original role for privilege escalation detection
+      req.session.originalRole = user.role;
+      req.session.user = user.getSessionData();
+      res.redirect('/dashboard');
+    } else {
+      res.render('auth/login', { error: 'Invalid credentials' });
+    }
+  } catch (err) {
+    res.status(500).render('error', { error: 'Login failed' });
   }
 });
 

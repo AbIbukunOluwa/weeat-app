@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { User, Order, Complaint, sequelize } = require('../models');
+const flagManager = require('../utils/flags');
 
-// VULNERABILITY A01: Multi-condition access control bypass
+// Complex admin check with authentication bypass
 function complexAdminCheck(req, res, next) {
-  // Basic check
   if (!req.session.user) {
     return res.redirect('/auth/login');
   }
@@ -15,35 +15,173 @@ function complexAdminCheck(req, res, next) {
   const roleOverride = req.query.role_override;
   const emergencyAccess = req.headers['x-emergency-access'];
   
-  // VULNERABILITY: Multiple bypass conditions
   const hasAdminRole = user.role === 'admin';
   const hasStaffBypass = user.role === 'staff' && adminBypass === 'staff-escalation-2024';
-  const hasEmergencyBypass = emergencyAccess === 'emergency-admin-access' && 
-                            userAgent?.includes('Internal-Tool');
-  const hasRoleOverride = roleOverride === 'admin' && 
-                         req.headers['x-role-token'] === 'override-token-2024';
+  const hasEmergencyBypass = emergencyAccess === 'emergency-admin-access' && userAgent?.includes('Internal-Tool');
+  const hasRoleOverride = roleOverride === 'admin' && req.headers['x-role-token'] === 'override-token-2024';
+  
+  // Check for privilege escalation
+  if (!hasAdminRole && (hasStaffBypass || hasEmergencyBypass || hasRoleOverride)) {
+    res.locals.privilegeEscalated = true;
+    res.locals.originalRole = user.role;
+    res.locals.escalationMethod = hasStaffBypass ? 'staff-bypass' : hasEmergencyBypass ? 'emergency' : 'role-override';
+    res.locals.generateFlag = true;
+    
+    // Set privilege escalation in session for flag generation
+    if (!req.session.privilegeEscalated) {
+      req.session.originalRole = user.role;
+      req.session.privilegeEscalated = true;
+    }
+  }
   
   if (hasAdminRole || hasStaffBypass || hasEmergencyBypass || hasRoleOverride) {
-    // VULNERABILITY: Log bypass attempts but allow them
-    if (!hasAdminRole) {
-      console.log('🚨 Admin bypass detected:', {
-        user: user.username,
-        method: hasStaffBypass ? 'staff-escalation' : 
-                hasEmergencyBypass ? 'emergency-access' : 'role-override',
-        ip: req.ip,
-        timestamp: new Date()
-      });
-    }
     return next();
   }
   
   return res.status(403).render('error', { 
     error: 'Access denied',
-    title: 'Forbidden',
-    details: req.headers['x-debug-access'] === 'true' ? 
-      'Try different access methods or headers' : null
+    title: 'Forbidden'
   });
 }
+
+// Apply privilege escalation detection middleware
+router.use(flagManager.flagMiddleware('PRIVILEGE_ESCALATION'));
+
+// SQL Injection in user search
+router.get('/users', complexAdminCheck, flagManager.flagMiddleware('SQL_INJECTION'), async (req, res) => {
+  try {
+    const { search, filter_role, date_from, date_to, sort = 'id', order = 'ASC' } = req.query;
+    
+    let users;
+    let searchQuery = 'SELECT * FROM users WHERE 1=1';
+    
+    if (search) {
+      searchQuery += ` AND (username ILIKE '%${search}%' OR email ILIKE '%${search}%')`;
+      
+      // Detect SQL injection attempts
+      if (search.includes("'") || search.includes('"') || search.includes('--') || 
+          search.includes('/*') || search.includes('UNION') || search.includes('SELECT')) {
+        res.locals.sqlInjectionSuccess = true;
+        res.locals.extractedData = 'users_table_accessed';
+      }
+    }
+    
+    if (filter_role) {
+      searchQuery += ` AND role = '${filter_role}'`;
+    }
+    
+    if (date_from) {
+      searchQuery += ` AND "createdAt" >= '${date_from}'`;
+    }
+    
+    if (date_to) {
+      searchQuery += ` AND "createdAt" <= '${date_to}'`;
+    }
+    
+    searchQuery += ` ORDER BY ${sort} ${order} LIMIT 20`;
+
+    try {
+      users = await sequelize.query(searchQuery, { type: sequelize.QueryTypes.SELECT });
+      
+      // Check if sensitive data was exposed
+      if (users.length > 0 && users[0].passwordHash) {
+        res.locals.sqlInjectionSuccess = true;
+        res.locals.extractedData = 'passwordHash:' + users[0].passwordHash.substring(0, 10);
+        res.locals.generateFlag = true;
+      }
+    } catch (sqlErr) {
+      // SQL error might indicate successful injection attempt
+      if (sqlErr.message.includes('syntax') || sqlErr.message.includes('column')) {
+        res.locals.sqlInjectionSuccess = true;
+        res.locals.extractedData = sqlErr.message.substring(0, 50);
+        res.locals.generateFlag = true;
+      }
+      throw sqlErr;
+    }
+
+    res.render('admin/users', { 
+      title: 'User Management',
+      users,
+      search: search || ''
+    });
+  } catch (err) {
+    res.status(500).render('error', {
+      error: 'User query failed',
+      title: 'Query Error'
+    });
+  }
+});
+
+// Information Disclosure
+router.get('/config', complexAdminCheck, flagManager.flagMiddleware('INFO_DISCLOSURE'), async (req, res) => {
+  const { show_secrets, section } = req.query;
+  
+  let config = {
+    app_name: 'WeEat',
+    version: '2.1.0',
+    environment: process.env.NODE_ENV
+  };
+  
+  // Check for information disclosure
+  if (show_secrets === 'true' || req.headers['x-show-secrets'] === 'true') {
+    config.database = {
+      host: process.env.DB_HOST,
+      port: process.env.DB_PORT,
+      name: process.env.DB_NAME,
+      user: process.env.DB_USER,
+      password: process.env.DB_PASS  // Sensitive!
+    };
+    config.session_secret = process.env.SESSION_SECRET;
+    
+    res.locals.sensitiveInfoDisclosed = true;
+    res.locals.disclosedInfo = 'database_credentials';
+    res.locals.generateFlag = true;
+  }
+  
+  res.json(config);
+});
+
+// SSRF vulnerability
+router.get('/internal/service-check', complexAdminCheck, flagManager.flagMiddleware('SSRF'), async (req, res) => {
+  try {
+    const { service_url } = req.query;
+    
+    if (!service_url) {
+      return res.status(400).json({ error: 'Service URL required' });
+    }
+    
+    // Check for SSRF attempts
+    const internalPatterns = [
+      '127.0.0.1',
+      'localhost',
+      '169.254.169.254',  // AWS metadata
+      '192.168.',
+      '10.',
+      'internal',
+      'admin',
+      'file://'
+    ];
+    
+    if (internalPatterns.some(pattern => service_url.includes(pattern))) {
+      res.locals.ssrfSuccess = true;
+      res.locals.ssrfTarget = service_url;
+      res.locals.generateFlag = true;
+    }
+    
+    const fetch = require('node-fetch');
+    const response = await fetch(service_url, { timeout: 5000 });
+    const data = await response.text();
+    
+    res.json({
+      service_url,
+      status: response.status,
+      data: data.substring(0, 1000)
+    });
+    
+  } catch (err) {
+    res.status(500).json({ error: 'Service check failed' });
+  }
+});
 
 // Admin dashboard with enhanced vulnerabilities
 router.get('/', complexAdminCheck, async (req, res) => {
@@ -303,6 +441,7 @@ router.get('/users', complexAdminCheck, async (req, res) => {
     });
   }
 });
+
 
 // VULNERABILITY A01: IDOR with conditional protection
 router.get('/users/:userId', complexAdminCheck, async (req, res) => {

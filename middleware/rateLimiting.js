@@ -1,5 +1,6 @@
 // middleware/rateLimiting.js - Rate limiting with multiple bypasses
 const rateLimit = require('express-rate-limit');
+const flagManager = require('../utils/flags');
 
 // Basic rate limiter that can be bypassed in multiple ways
 const createRateLimit = (windowMs, max, message) => {
@@ -123,4 +124,68 @@ module.exports = {
   apiRateLimit, 
   uploadRateLimit,
   passwordResetLimit
+};
+
+
+ // Rate limit bypass detection
+    skip: (req) => {
+      // Check for bypass attempts
+      const bypassHeaders = [
+        'x-forwarded-for',
+        'x-real-ip',
+        'x-rate-limit-bypass',
+        'x-admin-override'
+      ];
+      
+      const bypassDetected = bypassHeaders.some(header => {
+        const value = req.headers[header];
+        return value && (value.includes('127.0.0.1') || value === 'internal-service');
+      });
+      
+      if (bypassDetected) {
+        req.rateLimitBypassed = true;
+        req.bypassMethod = 'headers';
+        
+        // Set flag generation in response
+        if (!req.rateLimitFlagSet) {
+          req.rateLimitFlagSet = true;
+          
+          // Use middleware to set res.locals when response is being sent
+          const originalSend = req.res.send;
+          const originalJson = req.res.json;
+          
+          req.res.send = function(data) {
+            this.locals.rateLimitBypassed = true;
+            this.locals.bypassMethod = 'headers';
+            this.locals.generateFlag = true;
+            const flag = flagManager.checkExploitation('RATE_LIMIT_BYPASS', req, this);
+            if (flag && typeof data === 'string') {
+              data = data.replace('</body>', `<!-- FLAG: ${flag} --></body>`);
+            }
+            return originalSend.call(this, data);
+          };
+          
+          req.res.json = function(data) {
+            this.locals.rateLimitBypassed = true;
+            this.locals.bypassMethod = 'headers';
+            this.locals.generateFlag = true;
+            const flag = flagManager.checkExploitation('RATE_LIMIT_BYPASS', req, this);
+            if (flag && data && typeof data === 'object') {
+              data._flag = flag;
+            }
+            return originalJson.call(this, data);
+          };
+        }
+        
+        return true; // Skip rate limiting
+      }
+      
+      return false;
+    }
+  });
+};
+
+module.exports = {
+  authRateLimit: createRateLimit(15 * 60 * 1000, 5, 'Too many auth attempts'),
+  apiRateLimit: createRateLimit(1 * 60 * 1000, 100, 'API rate limit exceeded')
 };

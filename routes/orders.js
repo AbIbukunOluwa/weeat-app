@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { Order, CartItem, User } = require('../models');
+const flagManager = require('../utils/flags');
 
 router.use((req, res, next) => {
   if (!req.session.user) return res.redirect('/auth/login');
@@ -160,6 +161,62 @@ router.post('/:orderNumber/cancel', async (req, res) => {
       success: false, 
       error: 'Failed to cancel order' 
     });
+  }
+});
+
+// IDOR vulnerability
+router.get('/:orderNumber', flagManager.flagMiddleware('IDOR'), async (req, res) => {
+  try {
+    const orderNumber = req.params.orderNumber;
+    const order = await Order.findOne({ where: { orderNumber } });
+    
+    if (!order) {
+      return res.status(404).render('error', { error: 'Order not found' });
+    }
+    
+    // Check for IDOR - accessing another user's order
+    if (order.userId !== req.session.user.id) {
+      res.locals.idorSuccess = true;
+      res.locals.accessedResource = `order:${orderNumber}`;
+      res.locals.originalUser = req.session.user.id;
+      res.locals.generateFlag = true;
+    }
+    
+    res.render('orders/order_detail', { order });
+  } catch (err) {
+    res.status(500).render('error', { error: 'Failed to load order' });
+  }
+});
+
+// IDOR - Access other users' orders
+router.get('/:orderNumber', flagManager.flagMiddleware('IDOR'), async (req, res) => {
+  try {
+    const orderNumber = req.params.orderNumber;
+    const order = await Order.findOne({
+      where: { orderNumber },
+      include: [{ model: User, as: 'customer' }]
+    });
+    
+    if (!order) {
+      return res.status(404).render('error', { error: 'Order not found' });
+    }
+    
+    // Check for IDOR - accessing another user's order
+    if (req.session.user && order.userId !== req.session.user.id) {
+      res.locals.idorSuccess = true;
+      res.locals.accessedResource = `order:${orderNumber}`;
+      res.locals.originalUser = req.session.user.id;
+      res.locals.generateFlag = true;
+    }
+    
+    res.render('orders/order_detail', {
+      title: `Order ${orderNumber}`,
+      user: req.session.user,
+      order
+    });
+    
+  } catch (error) {
+    res.status(500).render('error', { error: 'Failed to load order' });
   }
 });
 

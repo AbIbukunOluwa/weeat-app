@@ -1,7 +1,88 @@
-
 const express = require('express');
 const router = express.Router();
 const { Food, sequelize } = require('../models');
+const flagManager = require('../utils/flags');
+
+// SQL Injection in menu search
+router.get('/', flagManager.flagMiddleware('SQL_INJECTION'), async (req, res) => {
+  try {
+    const { search, category, sort_by = 'id', sort_order = 'ASC' } = req.query;
+    
+    let foods;
+    let baseQuery = 'SELECT * FROM foods WHERE 1=1';
+    
+    if (search) {
+      baseQuery += ` AND (name ILIKE '%${search}%' OR description ILIKE '%${search}%')`;
+      
+      // Detect SQL injection
+      if (search.includes("'") || search.includes('UNION') || search.includes('--')) {
+        res.locals.sqlInjectionSuccess = true;
+        res.locals.extractedData = 'menu_data';
+        res.locals.generateFlag = true;
+      }
+    }
+    
+    if (category) {
+      baseQuery += ` AND category = '${category}'`;
+    }
+    
+    baseQuery += ` ORDER BY ${sort_by} ${sort_order}`;
+    
+    foods = await sequelize.query(baseQuery, { type: sequelize.QueryTypes.SELECT });
+    
+    res.render('menu', { 
+      user: req.session.user,
+      foods,
+      title: 'Menu',
+      search: search || '',
+      category: category || ''
+    });
+    
+  } catch (err) {
+    res.status(500).render('error', { error: 'Menu loading failed' });
+  }
+});
+
+// Price Manipulation vulnerability
+router.post('/add-to-cart', flagManager.flagMiddleware('PRICE_MANIPULATION'), async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Please login first' });
+  }
+  
+  try {
+    const { foodName, price, quantity = 1 } = req.body;
+    const userId = req.session.user.id;
+    
+    // Get actual price from database
+    const food = await Food.findOne({ where: { name: foodName } });
+    
+    if (food) {
+      const actualPrice = food.price;
+      const submittedPrice = parseFloat(price);
+      
+      // Check for price manipulation
+      if (actualPrice > 0 && (submittedPrice <= 0 || submittedPrice < actualPrice * 0.5)) {
+        res.locals.priceManipulated = true;
+        res.locals.originalPrice = actualPrice;
+        res.locals.manipulatedPrice = submittedPrice;
+        res.locals.generateFlag = true;
+      }
+    }
+    
+    // Vulnerable: Use client-provided price
+    await CartItem.create({
+      userId,
+      foodName,
+      price: price,  // Using manipulated price!
+      quantity
+    });
+    
+    res.json({ success: true, message: 'Added to cart' });
+    
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to add to cart' });
+  }
+});
 
 // VULNERABILITY A03: Advanced SQL injection with multiple vectors
 router.get('/', async (req, res) => {
@@ -182,6 +263,40 @@ router.post('/add-to-cart', async (req, res) => {
       error: 'Failed to add to cart',
       details: req.headers['x-cart-debug'] === 'true' ? err.message : null
     });
+  }
+});
+
+
+// Price Manipulation
+router.post('/add-to-cart', flagManager.flagMiddleware('PRICE_MANIPULATION'), async (req, res) => {
+  try {
+    const { foodName, price, quantity } = req.body;
+    const actualFood = await Food.findOne({ where: { name: foodName } });
+    
+    if (actualFood) {
+      const originalPrice = actualFood.price;
+      const submittedPrice = parseFloat(price);
+      
+      // Check for price manipulation
+      if (originalPrice > 0 && (submittedPrice <= 0 || submittedPrice < originalPrice * 0.5)) {
+        res.locals.priceManipulated = true;
+        res.locals.originalPrice = originalPrice;
+        res.locals.manipulatedPrice = submittedPrice;
+        res.locals.generateFlag = true;
+      }
+    }
+    
+    // Add to cart with manipulated price (vulnerable)
+    await CartItem.create({
+      userId: req.session.user.id,
+      foodName,
+      price: price,  // Using client-provided price
+      quantity
+    });
+    
+    res.json({ success: true, message: 'Added to cart' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to add to cart' });
   }
 });
 

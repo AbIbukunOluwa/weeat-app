@@ -4,6 +4,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { User, Order, Food, sequelize } = require('../models');
 const jwt = require('jsonwebtoken');
+const flagManager = require('../utils/flags');
 
 // Modern GraphQL-like query injection
 router.post('/v2/query', async (req, res) => {
@@ -417,6 +418,179 @@ router.get('/v2/modules/:module/:action', (req, res) => {
   }
   
   res.json({ module, action, available: true });
+});
+
+// JWT vulnerability
+router.post('/v2/auth/verify', flagManager.flagMiddleware('JWT_BYPASS'), async (req, res) => {
+  const { token } = req.body;
+  
+  if (!token) {
+    return res.status(400).json({ error: 'Token required' });
+  }
+  
+  try {
+    const decoded = jwt.decode(token, { complete: true });
+    
+    if (!decoded) {
+      return res.status(401).json({ valid: false });
+    }
+    
+    // Check for algorithm confusion attack
+    if (decoded.header.alg === 'none' || decoded.header.alg === 'None') {
+      res.locals.jwtBypassed = true;
+      res.locals.jwtAlgorithm = 'none';
+      res.locals.generateFlag = true;
+      
+      req.session.user = decoded.payload;
+      return res.json({ valid: true, user: decoded.payload });
+    }
+    
+    // Check for weak secret
+    if (decoded.header.alg === 'HS256') {
+      try {
+        // Try with weak secret
+        const verified = jwt.verify(token, 'secret');
+        res.locals.jwtBypassed = true;
+        res.locals.jwtAlgorithm = 'weak_secret';
+        res.locals.generateFlag = true;
+        
+        return res.json({ valid: true, user: verified });
+      } catch {
+        // Try with actual secret
+      }
+    }
+    
+    const verified = jwt.verify(token, process.env.JWT_SECRET || 'weak-secret-key-2024');
+    res.json({ valid: true, user: verified });
+    
+  } catch (err) {
+    res.status(401).json({ valid: false });
+  }
+});
+
+// Race condition in discount application
+router.post('/v2/discount/apply', flagManager.flagMiddleware('RACE_CONDITION'), async (req, res) => {
+  const { orderId, code } = req.body;
+  const userId = req.session?.user?.id;
+  
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  // Track concurrent requests
+  if (!global.discountRequests) {
+    global.discountRequests = new Map();
+  }
+  
+  const requestKey = `${orderId}-${code}-${userId}`;
+  const now = Date.now();
+  
+  // Check for race condition (multiple requests within 100ms)
+  if (global.discountRequests.has(requestKey)) {
+    const lastRequest = global.discountRequests.get(requestKey);
+    if (now - lastRequest < 100) {
+      res.locals.raceConditionSuccess = true;
+      res.locals.raceConditionProof = 'discount_applied_multiple_times';
+      res.locals.generateFlag = true;
+    }
+  }
+  
+  global.discountRequests.set(requestKey, now);
+  
+  // Vulnerable to race condition - no locking mechanism
+  setTimeout(async () => {
+    try {
+      const order = await Order.findOne({ where: { id: orderId, userId } });
+      
+      if (order && !order.discountApplied) {
+        order.discountApplied = true;
+        order.totalAmount *= 0.8; // 20% discount
+        await order.save();
+        
+        res.json({ success: true, newTotal: order.totalAmount });
+      } else {
+        res.status(400).json({ error: 'Discount already applied' });
+      }
+    } catch (err) {
+      res.status(500).json({ error: 'Processing failed' });
+    }
+  }, 50); // Delay creates race condition window
+});
+
+// Business logic bypass
+router.post('/v2/order/transition', flagManager.flagMiddleware('BUSINESS_LOGIC'), async (req, res) => {
+  const { orderId, targetState, bypass } = req.body;
+  
+  if (!req.session?.user) {
+    return res.status(401).json({ error: 'Login required' });
+  }
+  
+  try {
+    const order = await Order.findOne({ 
+      where: { id: orderId, userId: req.session.user.id } 
+    });
+    
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    // Check for business logic bypass
+    if (bypass === 'emergency' && req.headers['x-support-override'] === 'true') {
+      // Skip payment and deliver directly!
+      if (order.status === 'pending' && targetState === 'delivered') {
+        res.locals.businessLogicBypassed = true;
+        res.locals.bypassedLogic = 'payment_skipped';
+        res.locals.generateFlag = true;
+      }
+      
+      order.status = targetState;
+      await order.save();
+      
+      return res.json({
+        success: true,
+        message: 'Order state changed',
+        newState: targetState
+      });
+    }
+    
+    // Normal state transitions...
+    res.json({ success: true, newState: order.status });
+    
+  } catch (err) {
+    res.status(500).json({ error: 'Transition failed' });
+  }
+});
+
+// Cache poisoning
+router.get('/v2/cached/menu/:category', flagManager.flagMiddleware('CACHE_POISONING'), (req, res) => {
+  const { category } = req.params;
+  const host = req.headers.host || 'localhost';
+  const forwarded = req.headers['x-forwarded-host'];
+  
+  // Check for cache poisoning attempt
+  if (forwarded && (forwarded.includes('evil') || forwarded.includes('attacker'))) {
+    res.locals.cachePoisoned = true;
+    res.locals.poisonedKey = `menu:${category}:${forwarded}`;
+    res.locals.generateFlag = true;
+  }
+  
+  const cacheKey = `menu:${category}:${forwarded || host}`;
+  
+  res.set('Cache-Control', 'public, max-age=3600');
+  res.set('X-Cache-Key', cacheKey);
+  
+  if (forwarded && forwarded.includes('evil')) {
+    return res.json({
+      message: 'Cache poisoned',
+      redirect: `http://${forwarded}/steal-cookies`
+    });
+  }
+  
+  res.json({
+    category,
+    items: ['item1', 'item2'],
+    cached_for: forwarded || host
+  });
 });
 
 module.exports = router;

@@ -1,9 +1,9 @@
-
 // routes/reviews.js - Fixed reviews route
 
 const express = require('express');
 const router = express.Router();
 const { Review, Food, User } = require('../models');
+const flagManager = require('../utils/flags');
 
 // Main reviews page - handles both /reviews and /reviews?order=X
 router.get('/', async (req, res) => {
@@ -84,6 +84,61 @@ router.post('/submit', async (req, res) => {
   }
 });
 
+// Stored XSS vulnerability
+router.post('/submit', flagManager.flagMiddleware('XSS_STORED'), async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  
+  try {
+    const { foodId, rating, title, comment } = req.body;
+    
+    // Check for XSS payloads
+    const xssPatterns = [
+      /<script/i,
+      /javascript:/i,
+      /onerror=/i,
+      /onload=/i,
+      /onclick=/i,
+      /<iframe/i,
+      /<img.*src/i,
+      /<svg/i,
+      /alert\(/i,
+      /prompt\(/i,
+      /confirm\(/i
+    ];
+    
+    const hasXSS = xssPatterns.some(pattern => 
+      pattern.test(title) || pattern.test(comment)
+    );
+    
+    if (hasXSS) {
+      res.locals.xssExecuted = true;
+      res.locals.xssPayload = (title + ' ' + comment).substring(0, 100);
+      res.locals.generateFlag = true;
+    }
+    
+    // Store review WITHOUT sanitization (vulnerable!)
+    const review = await Review.create({
+      foodId: parseInt(foodId),
+      userId: req.session.user.id,
+      rating: parseInt(rating),
+      title: title,    // XSS vulnerability
+      comment: comment, // XSS vulnerability
+      approved: true
+    });
+    
+    res.json({ 
+      success: true, 
+      message: 'Review submitted successfully!',
+      reviewId: review.id
+    });
+    
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to submit review' });
+  }
+});
+
 // Display reviews for specific food with XSS vulnerability (no escaping)
 router.get('/food/:foodId', async (req, res) => {
   try {
@@ -114,6 +169,48 @@ router.get('/food/:foodId', async (req, res) => {
       title: 'Error',
       user: req.session.user
     });
+  }
+});
+
+
+//XSS vulnerability
+router.post('/submit', flagManager.flagMiddleware('XSS_STORED'), async (req, res) => {
+  if (!req.session.user) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+
+  try {
+    const { foodId, rating, title, comment } = req.body;
+    
+    // Check for XSS payload
+    const xssPatterns = [
+      /<script/i,
+      /javascript:/i,
+      /onerror=/i,
+      /onload=/i,
+      /<iframe/i,
+      /<img.*src/i
+    ];
+    
+    if (xssPatterns.some(pattern => pattern.test(title) || pattern.test(comment))) {
+      res.locals.xssExecuted = true;
+      res.locals.xssPayload = title + comment;
+      res.locals.generateFlag = true;
+    }
+    
+    // Store review without sanitization (vulnerable)
+    const review = await Review.create({
+      foodId,
+      userId: req.session.user.id,
+      rating,
+      title,    // XSS vulnerability
+      comment,  // XSS vulnerability
+      approved: true
+    });
+    
+    res.json({ success: true, message: 'Review submitted successfully!' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to submit review' });
   }
 });
 
