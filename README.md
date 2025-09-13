@@ -30,8 +30,7 @@ The application simulates a real-world food delivery platform with multiple user
 - **Node.js** (v14 or higher)
 - **PostgreSQL** (v12 or higher)
 - **npm** (comes with Node.js)
-- **Git**
-- Linux/macOS/WSL environment (for setup scripts)
+- **Linux Environment**
 
 ### Installation
 
