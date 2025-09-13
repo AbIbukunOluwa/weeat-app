@@ -30,7 +30,7 @@ The application simulates a real-world food delivery platform with multiple user
 - **Node.js** (v14 or higher)
 - **PostgreSQL** (v12 or higher)
 - **npm** (comes with Node.js)
-- **Linux Environment**
+- **Linux Environment** (for setup scripts)
 
 ### Installation
 
@@ -169,7 +169,7 @@ node health-check.js
 
 # Sync database schema
 node sync.js
-```
+
 
 ```
 
