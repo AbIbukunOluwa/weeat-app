@@ -560,13 +560,6 @@ const { sequelize, User, Order, Complaint, Vulnerability, Food, Review } = requi
     }
 
     console.log('\n🎉 Seeding complete!');
-    console.log('\n📋 Test Accounts (with updated passwords):');
-    console.log('   👤 Customer: alice@example.com / Alice123!');
-    console.log('   👤 Customer: bob@example.com / Bob12345!');
-    console.log('   👨‍💼 Staff: charlie@weeat.com / Charlie123!');
-    console.log('   👩‍💻 Admin: diana@weeat.com / Diana123!');
-    console.log('   🚨 Vulnerable: admin@weeat.com / Admin123!');
-    console.log('   🚨 Weak Auth: test@weeat.com / Test1234!');
     
     console.log('\n🍔 Menu Categories:');
     console.log('   - Mains: Burgers, Pizza, Chicken, Jollof Rice, Noodles, Wraps');
@@ -575,17 +568,11 @@ const { sequelize, User, Order, Complaint, Vulnerability, Food, Review } = requi
     console.log('   - Desserts: Ice Cream, Brownies');
     console.log('   - Beverages: Soft Drinks, Lemonade');
     
-    console.log('\n🎯 Vulnerability Flags Created:');
+    console.log('\n🎯 Vulnerability Gen Created:');
     vulnerabilities.forEach((v, i) => {
       console.log(`   ${i + 1}. ${v.title} (${v.severity})`);
     });
     
-    console.log('\n💰 Price Manipulation Attack Surface:');
-    console.log('   - Client-side price validation in cart');
-    console.log('   - Hidden discount codes (INTERNAL99, DEBUG100)');
-    console.log('   - Bulk discount manipulation');
-    console.log('   - Negative pricing with special headers');
-    console.log('   - Staff/Admin pricing overrides');
     
     console.log('\n🚀 Start the app with: npm start');
     console.log('🌐 Visit: http://localhost:3000');
